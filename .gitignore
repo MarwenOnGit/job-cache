@@ -1,0 +1,19 @@
+data/*.db
+data/*.json
+queue/pending/*.json
+queue/done/*.md
+queue/questions/pending/*.json
+queue/questions/answered/*.md
+
+# Personal data — stays local, moved via the app's Export/Import, never committed.
+/cv/cv.md
+/preferences.md
+/applications/*/
+/applications/applications.csv
+__pycache__/
+*.pyc
+node_modules/
+frontend/dist/
+.venv/
+.env
+.DS_Store

@@ -1,0 +1,16 @@
+{
+  "jobs": [
+    {
+      "shortcode": "F4C096B22E",
+      "title": "Senior Software Engineer, ML Platform",
+      "city": "Paris",
+      "state": "Île-de-France",
+      "country": "France",
+      "telecommuting": true,
+      "url": "https://apply.workable.com/j/F4C096B22E",
+      "application_url": "https://apply.workable.com/j/F4C096B22E/apply",
+      "published_on": "2026-08-01",
+      "description": "<p>Build ML platform tooling in Python. LLMs, RAG, Docker, Kubernetes.</p>"
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>job-hunter</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237c8cff'/%3E%3Cpath d='M11 11h10v10a4 4 0 0 1-8 0' fill='none' stroke='%230a0c18' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/styles.css?v=2" />
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">job&#8209;hunter</span>
+      </div>
+
+      <button class="cmd-trigger" id="cmdTrigger">
+        <span class="ci"></span><span>Search or jump to…</span><kbd>⌘K</kbd>
+      </button>
+
+      <nav class="nav" id="nav"></nav>
+
+      <div class="sidebar-foot">
+        <button id="harvestBtn" class="btn btn-primary btn-block">
+          <span class="btn-ico" data-ico="sparkle"></span><span class="btn-txt">Harvest jobs</span>
+        </button>
+        <div class="foot-row">
+          <button class="icon-btn" id="settingsBtn" title="Settings"></button>
+          <button class="icon-btn" id="themeBtn" title="Toggle theme"></button>
+          <span class="foot-stat" id="footStat"></span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <div id="view" class="view"></div>
+    </main>
+  </div>
+
+  <!-- overlays -->
+  <div id="workspace" class="ws" hidden></div>
+  <div id="modal" class="modal-root" hidden></div>
+  <div id="palette" class="palette-root" hidden></div>
+  <div id="toaster" class="toaster" aria-live="polite"></div>
+
+  <script src="/app.js?v=2"></script>
+</body>
+</html>

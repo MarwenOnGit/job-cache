@@ -1,0 +1,58 @@
+# Target companies for the harvester.
+# Each entry: name, ats_type (greenhouse|lever|ashby|smartrecruiters|workable|workday), ats_slug, hq_city, is_startup
+# ats_slug is the company's identifier on that ATS (the {slug} in the board URL).
+# Weighted toward Paris startups (best interview + visa odds). Easy to grow — add one line.
+# All slugs below were validated live; entries that stop resolving are skipped at harvest
+# time and reported in the errors summary.
+
+companies:
+  # ---------------- Paris startups (AI / data / SaaS) ----------------
+  - { name: "Hugging Face",     ats_type: workable,       ats_slug: huggingface,    hq_city: Paris, is_startup: true }
+  - { name: "Dust",             ats_type: ashby,          ats_slug: dust,           hq_city: Paris, is_startup: true }
+  - { name: "PhotoRoom",        ats_type: ashby,          ats_slug: photoroom,      hq_city: Paris, is_startup: true }
+  - { name: "Poolside",         ats_type: ashby,          ats_slug: poolside,       hq_city: Paris, is_startup: true }
+  - { name: "Nabla",            ats_type: ashby,          ats_slug: nabla,          hq_city: Paris, is_startup: true }
+  - { name: "Pennylane",        ats_type: ashby,          ats_slug: pennylane,      hq_city: Paris, is_startup: true }
+  - { name: "Alan",             ats_type: ashby,          ats_slug: alan,           hq_city: Paris, is_startup: true }
+  - { name: "Sorare",           ats_type: ashby,          ats_slug: sorare,         hq_city: Paris, is_startup: true }
+  - { name: "Owkin",            ats_type: ashby,          ats_slug: owkin,          hq_city: Paris, is_startup: true }
+  - { name: "Sifflet",          ats_type: ashby,          ats_slug: sifflet,        hq_city: Paris, is_startup: true }
+  - { name: "Pigment",          ats_type: lever,          ats_slug: pigment,        hq_city: Paris, is_startup: true }
+  - { name: "Aircall",          ats_type: lever,          ats_slug: aircall,        hq_city: Paris, is_startup: true }
+  - { name: "Contentsquare",    ats_type: lever,          ats_slug: contentsquare,  hq_city: Paris, is_startup: true }
+  - { name: "Qonto",            ats_type: lever,          ats_slug: qonto,          hq_city: Paris, is_startup: true }
+  - { name: "Ledger",           ats_type: lever,          ats_slug: ledger,         hq_city: Paris, is_startup: true }
+  - { name: "360Learning",      ats_type: lever,          ats_slug: 360learning,    hq_city: Paris, is_startup: true }
+  - { name: "Swile",            ats_type: lever,          ats_slug: swile,          hq_city: Paris, is_startup: true }
+  - { name: "Doctolib",         ats_type: greenhouse,     ats_slug: doctolib,       hq_city: Paris, is_startup: true }
+  - { name: "Dataiku",          ats_type: greenhouse,     ats_slug: dataiku,        hq_city: Paris, is_startup: true }
+  - { name: "Mirakl",           ats_type: greenhouse,     ats_slug: mirakl,         hq_city: Paris, is_startup: true }
+
+  # ---------------- London ----------------
+  - { name: "Wayve",            ats_type: greenhouse,     ats_slug: wayve,          hq_city: London, is_startup: true }
+  - { name: "Synthesia",        ats_type: ashby,          ats_slug: synthesia,      hq_city: London, is_startup: true }
+  - { name: "ElevenLabs",       ats_type: ashby,          ats_slug: elevenlabs,     hq_city: London, is_startup: true }
+  - { name: "Monzo",            ats_type: greenhouse,     ats_slug: monzo,          hq_city: London, is_startup: true }
+  - { name: "Wise",             ats_type: smartrecruiters, ats_slug: Wise,          hq_city: London, is_startup: false }
+  - { name: "Cloudflare",       ats_type: greenhouse,     ats_slug: cloudflare,     hq_city: London, is_startup: false }
+
+  # ---------------- Brussels / Belgium ----------------
+  - { name: "Collibra",         ats_type: greenhouse,     ats_slug: collibra,       hq_city: Brussels, is_startup: true }
+
+  # ---------------- Geneva / Switzerland ----------------
+  - { name: "SonarSource",      ats_type: lever,          ats_slug: sonarsource,    hq_city: Geneva, is_startup: true }
+  - { name: "Nexthink",         ats_type: smartrecruiters, ats_slug: Nexthink,      hq_city: Geneva, is_startup: true }
+  - { name: "Proton",           ats_type: greenhouse,     ats_slug: proton,         hq_city: Geneva, is_startup: true }
+  - { name: "Scandit",          ats_type: greenhouse,     ats_slug: scandit,        hq_city: Geneva, is_startup: true }
+
+  # ---------------- Big AI / tech with EU offices (nice-to-have) ----------------
+  - { name: "Datadog",          ats_type: greenhouse,     ats_slug: datadog,        hq_city: Paris, is_startup: false }
+  - { name: "Stripe",           ats_type: greenhouse,     ats_slug: stripe,         hq_city: London, is_startup: false }
+  - { name: "Databricks",       ats_type: greenhouse,     ats_slug: databricks,     hq_city: London, is_startup: false }
+  - { name: "GitLab",           ats_type: greenhouse,     ats_slug: gitlab,         hq_city: London, is_startup: false }
+  - { name: "Elastic",          ats_type: greenhouse,     ats_slug: elastic,        hq_city: London, is_startup: false }
+  - { name: "Figma",            ats_type: greenhouse,     ats_slug: figma,          hq_city: London, is_startup: false }
+
+  # ---------------- Known but on unsupported ATS (left for reference; skipped) ----------------
+  # Mistral AI — custom careers site (no public ATS JSON as of validation)
+  # PayFit / Spendesk / Back Market / ManoMano / Deliveroo — Welcome-to-the-Jungle / other, no open JSON

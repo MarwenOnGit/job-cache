@@ -1,0 +1,13 @@
+{
+  "jobs": [
+    {
+      "id": "ash-1",
+      "title": "Software Engineer, Backend",
+      "location": "Brussels, Belgium",
+      "jobUrl": "https://jobs.ashbyhq.com/acme/ash-1",
+      "descriptionPlain": "Backend services in Python. Docker, Kubernetes, PostgreSQL.",
+      "publishedAt": "2026-08-20T00:00:00Z",
+      "isRemote": false
+    }
+  ]
+}

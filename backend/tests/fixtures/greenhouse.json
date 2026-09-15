@@ -1,0 +1,21 @@
+{
+  "jobs": [
+    {
+      "id": 123,
+      "title": "Machine Learning Engineer",
+      "location": { "name": "Paris, France" },
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/123",
+      "content": "&lt;p&gt;Build ML systems with Python, Spark and Kafka. Visa sponsorship available.&lt;/p&gt;",
+      "first_published": "2026-09-01T10:00:00Z",
+      "updated_at": "2026-09-05T10:00:00Z"
+    },
+    {
+      "id": 124,
+      "title": "Office Manager",
+      "location": { "name": "Paris, France" },
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/124",
+      "content": "&lt;p&gt;Manage the Paris office.&lt;/p&gt;",
+      "first_published": "2026-09-02T10:00:00Z"
+    }
+  ]
+}
