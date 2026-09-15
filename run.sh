@@ -8,7 +8,11 @@ if [ ! -d .venv ]; then
   ./install.sh
 fi
 # shellcheck disable=SC1091
-source .venv/bin/activate
+if [ -f .venv/Scripts/activate ]; then
+  source .venv/Scripts/activate
+else
+  source .venv/bin/activate
+fi
 
 PORT="${PORT:-8000}"
 URL="http://localhost:${PORT}"
@@ -23,6 +27,7 @@ fi
 ( sleep 1.5
   if command -v open >/dev/null 2>&1; then open "$URL"
   elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$URL"
+  elif command -v cmd.exe >/dev/null 2>&1; then cmd.exe /c start "" "$URL"
   fi ) &
 
 echo "Dashboard: ${URL}  (Ctrl+C to stop)"
