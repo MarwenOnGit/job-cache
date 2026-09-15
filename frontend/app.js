@@ -911,7 +911,7 @@ function closePalette() { $("#palette").hidden = true; $("#palette").innerHTML =
 function openModal(html) {
   $("#modal").hidden = false;
   $("#modal").innerHTML = `<div class="scrim" data-close></div><div class="modal">${html}</div>`;
-  $("[data-close]", $("#modal")).onclick = closeModal;
+  $$("[data-close]", $("#modal")).forEach((el) => (el.onclick = closeModal));
 }
 function closeModal() { $("#modal").hidden = true; $("#modal").innerHTML = ""; }
 function openSettings() {
@@ -983,9 +983,13 @@ function openOnboarding(st) {
         <button class="btn btn-ghost btn-sm" id="obCvUpload">${ico("upload", "btn-ico")}<span>Upload a file</span></button>
         <span class="hint" id="obCvName" style="margin-left:8px"></span></div>
     </div>
-    <div class="field"><label>Target cities</label><div class="ob-chips" id="ob-cities">${chips("cities", OB_CITIES)}</div></div>
+    <div class="field"><label>Target cities</label><div class="ob-chips" id="ob-cities">${chips("cities", OB_CITIES)}</div>
+      <div class="ob-add"><input class="input" id="ob-cities-add" placeholder="Add another city…"><button type="button" class="btn btn-ghost btn-sm" id="ob-cities-addBtn">Add</button></div>
+    </div>
     <div class="field"><label>Experience</label><div class="ob-chips" id="ob-exp">${chips("experience", OB_EXP)}</div></div>
-    <div class="field"><label>Role types</label><div class="ob-chips" id="ob-roles">${chips("roles", OB_ROLES)}</div></div>
+    <div class="field"><label>Role types</label><div class="ob-chips" id="ob-roles">${chips("roles", OB_ROLES)}</div>
+      <div class="ob-add"><input class="input" id="ob-roles-add" placeholder="Add another role type…"><button type="button" class="btn btn-ghost btn-sm" id="ob-roles-addBtn">Add</button></div>
+    </div>
     <div class="field"><label>Cover-letter language</label><div class="ob-chips" id="ob-lang">${chips("language", OB_LANG)}</div></div>
     <div class="field"><label>How should your cover letters sound? <span class="hint">optional</span></label>
       <textarea class="input" id="obTone" style="min-height:56px" placeholder="e.g. direct and confident, a bit warm, no corporate jargon"></textarea></div>
@@ -993,10 +997,31 @@ function openOnboarding(st) {
     <div class="modal-actions"><button class="btn btn-ghost" data-close>Skip</button><button class="btn btn-primary" id="obSave">Save &amp; continue</button></div>`);
   // single-select for experience/language, multi for cities/roles
   const single = new Set(["experience", "language"]);
-  $$(".ob-chip", $("#modal")).forEach((b) => (b.onclick = () => {
+  const bindChip = (b) => (b.onclick = () => {
     if (single.has(b.dataset.group)) $$(`.ob-chip[data-group="${b.dataset.group}"]`).forEach((x) => x.classList.toggle("on", x === b));
     else b.classList.toggle("on");
-  }));
+  });
+  $$(".ob-chip", $("#modal")).forEach(bindChip);
+  // custom tags: cities and roles accept free-text additions beyond the fixed list
+  [["cities", "#ob-cities"], ["roles", "#ob-roles"]].forEach(([group, sel]) => {
+    const container = $(sel);
+    const input = $(`${sel}-add`);
+    const addTag = () => {
+      const val = input.value.trim();
+      if (!val) return;
+      const existing = $$(".ob-chip", container).find((x) => x.dataset.val.toLowerCase() === val.toLowerCase());
+      if (existing) { existing.classList.add("on"); }
+      else {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "ob-chip on"; b.dataset.group = group; b.dataset.val = val; b.textContent = val;
+        bindChip(b);
+        container.appendChild(b);
+      }
+      input.value = ""; input.focus();
+    };
+    $(`${sel}-addBtn`).onclick = addTag;
+    input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } };
+  });
   $("#obCvUpload").onclick = () => $("#obCvFile").click();
   $("#obCvFile").onchange = async (e) => { const f = e.target.files[0]; if (!f) return; $("#obCv").value = await f.text(); $("#obCvName").textContent = f.name; };
   $("#obSave").onclick = async () => {
@@ -1017,7 +1042,6 @@ function openOnboarding(st) {
         <div style="margin:10px 0 2px"><code style="font-size:14px">/onboard</code></div>
         It reads your CV + answers and writes your personal <code>preferences.md</code>. Then harvest jobs and you're off.</div>
       <div class="modal-actions"><button class="btn btn-primary" data-close>Got it</button></div>`);
-    $("[data-close]", $("#modal")).onclick = closeModal;
     reload();
   };
 }
