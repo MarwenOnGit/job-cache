@@ -8,12 +8,12 @@ function __fatalBanner(msg) {
     el.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:999;background:#331b1d;color:#f2726f;font:13px/1.5 -apple-system,sans-serif;padding:12px 16px;border-bottom:1px solid #f2726f";
     document.body && document.body.appendChild(el);
   }
-  el.textContent = "job-hunter error: " + msg + "  — press ⌘⇧R to hard-reload.";
+  el.textContent = "job cache error: " + msg + "  — press ⌘⇧R to hard-reload.";
 }
 window.addEventListener("error", (e) => __fatalBanner(e.message || String(e.error)));
 window.addEventListener("unhandledrejection", (e) => __fatalBanner(String(e.reason && e.reason.message || e.reason)));
 /* ═══════════════════════════════════════════════════════════════════════════
-   job-hunter — dashboard client
+   job cache — dashboard client
    Pages render into #view; chrome (sidebar) + overlays (palette, modal, ws,
    toaster) persist. Keyboard-first, learns from your decisions.
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -143,7 +143,7 @@ function renderNav() {
 function applyTheme(t) {
   document.documentElement.dataset.theme = t;
   $("#themeBtn").innerHTML = ico(t === "dark" ? "sun" : "moon");
-  config.theme = t; localStorage.setItem("jh-theme", t);
+  config.theme = t; localStorage.setItem("jc-theme", t);
 }
 function toggleTheme() {
   const t = config.theme === "dark" ? "light" : "dark";
@@ -357,12 +357,22 @@ async function toggleStar(id) {
 /* ═══════════════════════════════════════════════════════════════════════════
    Page: Jobs
    ═══════════════════════════════════════════════════════════════════════════ */
+const LOCATION_OPTS = [
+  ["paris", "Paris"], ["london", "London"], ["brussels", "Brussels"], ["geneva", "Switzerland (Geneva/Zürich)"],
+  ["amsterdam", "Amsterdam"], ["berlin", "Berlin"], ["munich", "Munich"], ["dublin", "Dublin"],
+  ["madrid", "Madrid"], ["barcelona", "Barcelona"], ["lisbon", "Lisbon"], ["milan", "Milan"],
+  ["stockholm", "Stockholm"], ["copenhagen", "Copenhagen"], ["france", "France (other)"], ["uk", "UK (other)"],
+  ["belgium", "Belgium (other)"], ["switzerland", "Switzerland (other)"], ["netherlands", "Netherlands"],
+  ["germany", "Germany (other)"], ["spain", "Spain (other)"], ["italy", "Italy (other)"], ["portugal", "Portugal (other)"],
+  ["ireland", "Ireland (other)"], ["sweden", "Sweden"], ["denmark", "Denmark"], ["poland", "Poland"],
+  ["eu-other", "Rest of Europe"], ["remote-eu", "Remote (EU)"], ["remote-global", "Remote (Worldwide)"],
+];
 function jobsFiltersHtml() {
   const opt = (v, l, cur) => `<option value="${v}" ${v === cur ? "selected" : ""}>${l}</option>`;
   const f = jobsFilters;
   return `<div class="filters">
     <select class="input" id="f-sort">${opt("for_you", "Sort: For you", f.sort)}${opt("score", "Sort: Match", f.sort)}${opt("date", "Sort: Newest", f.sort)}${opt("company", "Sort: Company", f.sort)}</select>
-    <select class="input" id="f-city">${opt("", "All cities", f.city)}${opt("paris", "Paris", f.city)}${opt("london", "London", f.city)}${opt("brussels", "Brussels", f.city)}${opt("geneva", "Geneva", f.city)}${opt("remote-eu", "Remote (EU)", f.city)}</select>
+    <select class="input" id="f-city">${opt("", "All locations", f.city)}${LOCATION_OPTS.map(([v, l]) => opt(v, l, f.city)).join("")}</select>
     <select class="input" id="f-role">${opt("", "All roles", f.role_family)}${opt("ai_agentic", "AI / Agentic", f.role_family)}${opt("ai_ml", "AI / ML", f.role_family)}${opt("data_eng", "Data Eng", f.role_family)}${opt("swe", "SWE", f.role_family)}</select>
     <select class="input" id="f-level">${opt("suitable", "Fits my level", f.level)}${opt("junior", "Junior", f.level)}${opt("all", "All levels", f.level)}</select>
     <select class="input" id="f-sponsor">${opt("", "Any sponsorship", f.sponsorship)}${opt("likely_sponsors", "Likely sponsors", f.sponsorship)}${opt("silent", "Silent", f.sponsorship)}${opt("no_sponsorship", "No sponsorship", f.sponsorship)}</select>
@@ -710,32 +720,123 @@ async function renderInsights() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Page: Profile (editable)
+   Page: Profile (search preferences + CV + application voice, all editable)
    ═══════════════════════════════════════════════════════════════════════════ */
 let profileEditing = false;
+const PREF_EXP = [["", "No preference"], ["0-1", "0-1 yrs"], ["1-3", "1-3 yrs"], ["3-5", "3-5 yrs"], ["5-8", "5-8 yrs"], ["8+", "8+ yrs"]];
+const PREF_LANG = [["", "No preference"], ["english", "English"], ["french", "French"], ["both", "Both"]];
+
 async function renderProfile() {
-  $("#view").innerHTML = `<div class="pagehead"><div class="pagehead-l"><h1 class="pagetitle">Profile</h1><p class="pagesub">The CV and preferences that shape every application.</p></div>
+  $("#view").innerHTML = `<div class="pagehead"><div class="pagehead-l"><h1 class="pagetitle">Profile</h1><p class="pagesub">What you search for, and the CV and voice that shape every application.</p></div>
     <div class="pagehead-r"><div class="seg"><button data-mode="view" class="${!profileEditing ? "on" : ""}">Preview</button><button data-mode="edit" class="${profileEditing ? "on" : ""}">Edit</button></div></div></div>
     <div class="scroll pad" id="profBody">${skeletons(1)}</div>`;
   $$('.seg [data-mode]').forEach((b) => (b.onclick = () => { profileEditing = b.dataset.mode === "edit"; renderProfile(); }));
-  const p = await api("/api/profile");
+  const [p, pref] = await Promise.all([api("/api/profile"), api("/api/preferences")]);
+  const prefsHtml = searchPrefsHtml(pref);
+  const cvBlock = profileEditing
+    ? `<div><div class="section-h">My CV <span class="pill muted">cv/cv.md</span></div><textarea class="input" id="cvEdit" style="min-height:44vh">${esc(p.cv)}</textarea></div>`
+    : `<div><div class="section-h">My CV <span class="pill muted">cv/cv.md</span></div><div class="panel">${mdLite(p.cv || "(no cv.md yet — switch to Edit to add one)")}</div></div>`;
+  const voiceBlock = profileEditing
+    ? `<div><div class="section-h">Application voice <span class="pill muted">preferences.md</span></div><textarea class="input" id="prefEdit" style="min-height:44vh">${esc(p.preferences)}</textarea></div>`
+    : `<div><div class="section-h">Application voice <span class="pill muted">preferences.md</span></div><div class="panel">${mdLite(p.preferences || "(no preferences.md)")}</div></div>`;
+  const saveRow = profileEditing
+    ? `<div class="modal-actions" style="justify-content:flex-start"><button class="btn btn-primary" id="saveProf">${ico("check", "btn-ico")}<span>Save CV &amp; voice</span></button></div>` : "";
+
+  $("#profBody").innerHTML = `${prefsHtml}
+    <div class="grid two-col" style="margin-top:20px">${cvBlock}${voiceBlock}</div>${saveRow}`;
+
+  wireSearchPrefs(pref);
   if (profileEditing) {
-    $("#profBody").innerHTML = `
-      <div class="grid two-col">
-        <div><div class="section-h">My CV <span class="pill muted">cv/cv.md</span></div><textarea class="input" id="cvEdit" style="min-height:52vh">${esc(p.cv)}</textarea></div>
-        <div><div class="section-h">Preferences <span class="pill muted">preferences.md</span></div><textarea class="input" id="prefEdit" style="min-height:52vh">${esc(p.preferences)}</textarea></div>
-      </div>
-      <div class="modal-actions" style="justify-content:flex-start"><button class="btn btn-primary" id="saveProf">${ico("check", "btn-ico")}<span>Save profile</span></button></div>`;
     $("#saveProf").onclick = async () => {
       await api("/api/profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cv: $("#cvEdit").value, preferences: $("#prefEdit").value }) });
-      toast("Profile saved", "ok"); profileEditing = false; renderProfile();
+      toast("CV & voice saved", "ok");
     };
-  } else {
-    $("#profBody").innerHTML = `<div class="grid two-col">
-      <div><div class="section-h">My CV <span class="pill muted">cv/cv.md</span></div><div class="panel">${mdLite(p.cv || "(no cv.md yet — switch to Edit to add one)")}</div></div>
-      <div><div class="section-h">Application preferences <span class="pill muted">preferences.md</span></div><div class="panel">${mdLite(p.preferences || "(no preferences.md)")}</div></div>
-    </div>`;
   }
+}
+
+/* ── Search preferences: countries, role families, titles, keywords ──────── */
+// Working copy, mutated by the chip/tag widgets, read on save.
+let spDraft = null;
+function searchPrefsHtml(pref) {
+  const P = pref.preferences || {};
+  spDraft = {
+    locations: [...(P.locations || [])], role_families: [...(P.role_families || [])],
+    titles: [...(P.titles || [])], keywords: [...(P.keywords || [])],
+    experience: P.experience || "", language: P.language || "",
+  };
+  const cat = pref.catalog || { locations: [], role_families: [] };
+  const chip = (group, tok, lbl, on) => `<button type="button" class="ob-chip ${on ? "on" : ""}" data-sp="${group}" data-val="${esc(tok)}">${esc(lbl)}</button>`;
+  const locChips = cat.locations.map(([t, l]) => chip("locations", t, l, spDraft.locations.includes(t))).join("");
+  const roleChips = cat.role_families.map(([t, l]) => chip("role_families", t, l, spDraft.role_families.includes(t))).join("");
+  const sel = (id, opts, cur) => `<select class="input" id="${id}" style="max-width:220px">${opts.map(([v, l]) => `<option value="${v}" ${v === cur ? "selected" : ""}>${l}</option>`).join("")}</select>`;
+  const savedPill = pref.saved ? `<span class="pill ok">saved</span>` : `<span class="pill muted">from onboarding</span>`;
+  return `
+    <div class="panel sp-panel">
+      <div class="sp-head">
+        <div><div class="section-h" style="margin:0">${ico("search")} Search preferences ${savedPill}</div>
+          <p class="qa-hint" style="margin:6px 0 0">Where and what to search for. These drive the harvester and ranking — edit them here anytime, no need to re-onboard. <b>Leave a group empty to include everything.</b></p></div>
+      </div>
+      <div class="sp-grid">
+        <div class="sp-field"><label class="sp-label">Locations &amp; countries</label><div class="ob-chips" id="sp-locations">${locChips}</div></div>
+        <div class="sp-field"><label class="sp-label">Role families</label><div class="ob-chips" id="sp-role_families">${roleChips}</div></div>
+        <div class="sp-field"><label class="sp-label">Job titles to target <span class="hint">e.g. "backend engineer", "MLOps"</span></label>
+          <div class="sp-tags" id="sp-titles-tags"></div>
+          <div class="ob-add"><input class="input" id="sp-titles-add" placeholder="Add a job title…"><button type="button" class="btn btn-ghost btn-sm" id="sp-titles-btn">Add</button></div></div>
+        <div class="sp-field"><label class="sp-label">Keywords to boost <span class="hint">skills / tech that should rank higher</span></label>
+          <div class="sp-tags" id="sp-keywords-tags"></div>
+          <div class="ob-add"><input class="input" id="sp-keywords-add" placeholder="Add a keyword…"><button type="button" class="btn btn-ghost btn-sm" id="sp-keywords-btn">Add</button></div></div>
+        <div class="sp-field"><label class="sp-label">Experience level</label>${sel("sp-experience", PREF_EXP, spDraft.experience)}</div>
+        <div class="sp-field"><label class="sp-label">Cover-letter language</label>${sel("sp-language", PREF_LANG, spDraft.language)}</div>
+      </div>
+      <div class="sp-actions">
+        <button class="btn btn-primary" id="sp-save">${ico("check", "btn-ico")}<span>Save preferences</span></button>
+        <button class="btn btn-ok" id="sp-save-harvest">${ico("sparkle", "btn-ico")}<span>Save &amp; re-harvest</span></button>
+      </div>
+    </div>`;
+}
+function wireSearchPrefs() {
+  // chip groups (locations, role_families): toggle membership in the draft
+  $$("[data-sp]").forEach((b) => (b.onclick = () => {
+    const g = b.dataset.sp, v = b.dataset.val;
+    const arr = spDraft[g];
+    const i = arr.indexOf(v);
+    if (i >= 0) { arr.splice(i, 1); b.classList.remove("on"); }
+    else { arr.push(v); b.classList.add("on"); }
+  }));
+  // tag inputs (titles, keywords)
+  ["titles", "keywords"].forEach((g) => {
+    const box = $(`#sp-${g}-tags`);
+    const draw = () => {
+      box.innerHTML = spDraft[g].map((t, i) =>
+        `<span class="sp-tag">${esc(t)}<button type="button" data-rm="${g}" data-i="${i}">${ICONS.x}</button></span>`).join("")
+        || `<span class="sp-tag-empty">none — matches everything</span>`;
+      box.querySelectorAll("[data-rm]").forEach((x) => (x.onclick = () => { spDraft[g].splice(+x.dataset.i, 1); draw(); }));
+    };
+    const input = $(`#sp-${g}-add`);
+    const add = () => { const v = input.value.trim(); if (v && !spDraft[g].some((t) => t.toLowerCase() === v.toLowerCase())) spDraft[g].push(v); input.value = ""; input.focus(); draw(); };
+    $(`#sp-${g}-btn`).onclick = add;
+    input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); add(); } };
+    draw();
+  });
+  const collect = () => ({
+    locations: spDraft.locations, role_families: spDraft.role_families,
+    titles: spDraft.titles, keywords: spDraft.keywords,
+    experience: $("#sp-experience").value, language: $("#sp-language").value,
+  });
+  const save = async () => {
+    await api("/api/preferences", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(collect()) });
+  };
+  $("#sp-save").onclick = async () => { await save(); toast("Search preferences saved", "ok"); renderProfile(); };
+  $("#sp-save-harvest").onclick = async (e) => {
+    const btn = e.currentTarget; btn.disabled = true;
+    try {
+      await save();
+      toast("Saved — re-harvesting with your preferences…", "info");
+      const s = await api("/api/harvest", { method: "POST" });
+      toast(`Harvested ${s.kept} jobs${s.errors && s.errors.length ? ` · ${s.errors.length} skipped` : ""}`, "ok");
+      await refreshCounts(); renderProfile();
+    } catch (err) { toast("Re-harvest failed", "err"); btn.disabled = false; }
+  };
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -748,24 +849,25 @@ function renderAbout() {
   const pageRow = (icon, name, d) => `<div class="pg-row">${ico(icon)}<div><b>${name}</b> ${d}</div></div>`;
 
   $("#view").innerHTML = `
-    <div class="pagehead"><div class="pagehead-l"><h1 class="pagetitle">${ico("book")} How to use job-hunter</h1>
+    <div class="pagehead"><div class="pagehead-l"><h1 class="pagetitle">${ico("book")} How to use job cache</h1>
       <p class="pagesub">The whole workflow, every command, and the shortcuts.</p></div></div>
     <div class="scroll pad" id="aboutBody">
       <div class="ab-hero">
-        <p>job-hunter finds real jobs, ranks them against your CV, and helps you apply, all locally and with <b>no API keys</b>. The AI is <b>you running Claude Code</b> in this repo: the dashboard and Claude talk through files in the <code>queue/</code> folder, so there's nothing to pay for. Assisted apply, not auto-apply: it finds, ranks, and drafts; you review and submit.</p>
+        <p>job cache finds real jobs, ranks them against your CV, and helps you apply, all locally and with <b>no API keys</b>. The AI is <b>you running Claude Code</b> in this repo: the dashboard and Claude talk through files in the <code>queue/</code> folder, so there's nothing to pay for. Assisted apply, not auto-apply: it finds, ranks, and drafts; you review and submit.</p>
       </div>
 
       <div class="ab-grid">
         <div class="panel ab-flow">
           <h3>${ico("bolt")} The workflow</h3>
           <ol class="steps">
-            ${step(1, "Harvest", "Click <b>Harvest jobs</b> (bottom-left). It pulls fresh postings from free public job boards. The first launch does this automatically.")}
-            ${step(2, "Browse", "Go to <b>Jobs</b>. Filter, search, and sort by <b>For you</b>. Star ones you like, take private notes, or dismiss the rest. Jobs you've applied to or dismissed drop out of this list.")}
-            ${step(3, "Queue", "On a job you want, click <b>Queue for Claude</b>. It moves to the <b>Queue</b> tab.")}
-            ${step(4, "Generate", "In a terminal in this repo, run <code>claude</code>, then <code>/apply</code>. Claude writes a tailored cover letter and per-role notes, grouped by company, in your voice.")}
-            ${step(5, "Review &amp; apply", "Back in the app, open a queued job. Read the materials, hit <b>Apply workspace</b> for side-by-side copy-paste (or <b>Pop out</b> the form), submit, then click <b>Mark as applied</b>.")}
-            ${step(6, "Answer questions", "For custom form questions (\"describe a project…\"), use the <b>Q&amp;A</b> on the Queue page. Type <b>@</b> to reference a job, ask, run <code>/answer</code>, and copy the draft.")}
-            ${step(7, "Track &amp; learn", "The <b>Applications</b> tab tracks each application's status. <b>Insights</b> learns what you pursue and sharpens the <b>For you</b> ranking.")}
+            ${step(1, "Set what you want", "In <b>Profile → Search preferences</b>, pick your countries, role families, target titles and keywords (leave a group empty to include everything). This drives what gets harvested and how it's ranked.")}
+            ${step(2, "Harvest", "Click <b>Harvest jobs</b> (bottom-left). It pulls fresh postings from free public ATS boards <b>and</b> keyless aggregators (Remotive, Arbeitnow, Jobicy, Himalayas, RemoteOK, The Muse), so the pool is wide. The first launch does this automatically.")}
+            ${step(3, "Browse", "Go to <b>Jobs</b>. Filter, search, and sort by <b>For you</b>. Star ones you like, take private notes, or dismiss the rest. Jobs you've applied to or dismissed drop out of this list.")}
+            ${step(4, "Queue", "On a job you want, click <b>Queue for Claude</b>. It moves to the <b>Queue</b> tab.")}
+            ${step(5, "Generate", "In a terminal in this repo, run <code>claude</code>, then <code>/apply</code>. Claude writes a tailored cover letter and per-role notes, grouped by company, in your voice.")}
+            ${step(6, "Review &amp; apply", "Back in the app, open a queued job. Read the materials, hit <b>Apply workspace</b> for side-by-side copy-paste (or <b>Pop out</b> the form), submit, then click <b>Mark as applied</b>.")}
+            ${step(7, "Answer questions", "For custom form questions (\"describe a project…\"), use the <b>Q&amp;A</b> on the Queue page. Type <b>@</b> to reference a job, ask, run <code>/answer</code>, and copy the draft.")}
+            ${step(8, "Track &amp; learn", "The <b>Applications</b> tab tracks each application's status. <b>Insights</b> learns what you pursue and sharpens the <b>For you</b> ranking.")}
           </ol>
         </div>
 
@@ -799,7 +901,7 @@ function renderAbout() {
             ${pageRow("queue", "Queue", "pursue jobs, review materials, and the Q&amp;A assistant.")}
             ${pageRow("applications", "Applications", "your tracker, with CSV export.")}
             ${pageRow("insights", "Insights", "what the model learned about your taste.")}
-            ${pageRow("profile", "Profile", "view and edit your CV + preferences.")}
+            ${pageRow("profile", "Profile", "your search preferences (countries, roles, titles, keywords), CV, and voice.")}
           </div>
         </div>
         <div class="panel">
@@ -1024,7 +1126,7 @@ function openOnboarding(st) {
   }).join("");
   const prefsReady = st && st.preferences_ready;
   openModal(`
-    <h2>Welcome to job-hunter</h2>
+    <h2>Welcome to job cache</h2>
     <p class="sub">Tell it about you. Your CV and answers stay on your machine; nothing is committed to the repo.</p>
     <div class="field"><label>Your name</label><input class="input" id="obName" placeholder="Alex Rivera"></div>
     <div class="field"><label>Your CV <span class="hint">paste markdown, or upload a .md / .txt file</span></label>
@@ -1130,7 +1232,7 @@ function showFatal(err) {
   if (v) v.innerHTML = `<div class="empty">${ico("info")}<h3>Something failed to load</h3>
     <p>${esc(String(err && err.message || err))}</p>
     <button class="btn btn-primary" onclick="location.reload()">Reload</button></div>`;
-  console.error("job-hunter:", err);
+  console.error("job cache:", err);
 }
 async function refreshCounts() {
   try {
@@ -1197,7 +1299,7 @@ $("#themeBtn").onclick = toggleTheme;
 
 (async function init() {
   try {
-    try { applyTheme(localStorage.getItem("jh-theme") || "dark"); } catch (e) { document.documentElement.dataset.theme = "dark"; }
+    try { applyTheme(localStorage.getItem("jc-theme") || localStorage.getItem("jh-theme") || "dark"); } catch (e) { document.documentElement.dataset.theme = "dark"; }
     try { config = await api("/api/config"); } catch (e) {}
     try { applyTheme(config.theme || "dark"); } catch (e) {}
     renderNav();

@@ -9,18 +9,101 @@ _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"[ \t\r\f\v]+")
 _NL_RE = re.compile(r"\n{3,}")
 
-# --- Target cities ----------------------------------------------------------
-TARGET_CITIES = {"paris", "brussels", "geneva", "london", "remote-eu"}
-
+# --- Target locations -------------------------------------------------------
+# Canonical location buckets. Ordered: specific cities first, then country-level
+# catch-alls, so "Paris" wins over the generic "france" bucket. Every token here
+# is a location the harvester can keep; the user's preferences (prefs.py) pick a
+# subset, and an empty preference means "all of these".
 _CITY_PATTERNS = [
+    # --- specific cities ---
     ("paris", ["paris", "ile-de-france", "île-de-france", "ile de france", "boulogne", "montrouge"]),
-    ("brussels", ["brussels", "bruxelles", "brussel", "belgium", "belgique"]),
-    ("geneva", ["geneva", "genève", "geneve", "zurich", "zürich", "lausanne", "switzerland", "suisse"]),
-    ("london", ["london", "united kingdom", "england", ", uk", "(uk)", "uk)"]),
+    ("london", ["london"]),
+    ("brussels", ["brussels", "bruxelles", "brussel"]),
+    ("geneva", ["geneva", "genève", "geneve", "zurich", "zürich", "lausanne", "basel", "bern", "zug"]),
+    ("amsterdam", ["amsterdam"]),
+    ("berlin", ["berlin"]),
+    ("munich", ["munich", "münchen", "muenchen"]),
+    ("dublin", ["dublin"]),
+    ("madrid", ["madrid"]),
+    ("barcelona", ["barcelona", "barcelone"]),
+    ("lisbon", ["lisbon", "lisboa", "lisbonne"]),
+    ("milan", ["milan", "milano"]),
+    ("stockholm", ["stockholm"]),
+    ("copenhagen", ["copenhagen", "københavn", "kobenhavn"]),
+    # --- country-level catch-alls (only reached if no specific city matched) ---
+    ("france", ["france", "lyon", "toulouse", "nantes", "bordeaux", "lille", "marseille",
+                "nice", "sophia antipolis", "rennes", "grenoble", "montpellier", "strasbourg"]),
+    ("uk", ["united kingdom", "england", "scotland", "wales", ", uk", "(uk)", "uk)"]),
+    ("belgium", ["belgium", "belgique", "belgië", "antwerp", "antwerpen", "ghent", "gent", "leuven"]),
+    ("switzerland", ["switzerland", "suisse", "schweiz"]),
+    ("netherlands", ["netherlands", "nederland", "holland", "rotterdam", "utrecht", "eindhoven", "the hague"]),
+    ("germany", ["germany", "deutschland", "hamburg", "frankfurt", "cologne", "köln", "koeln",
+                 "stuttgart", "düsseldorf", "dusseldorf", "leipzig"]),
+    ("spain", ["spain", "españa", "espana", "valencia", "seville", "sevilla", "málaga", "malaga", "bilbao"]),
+    ("italy", ["italy", "italia", "rome", "roma", "turin", "torino", "bologna"]),
+    ("portugal", ["portugal", "porto"]),
+    ("ireland", ["ireland", "irlande"]),
+    ("sweden", ["sweden", "sverige", "gothenburg", "göteborg", "malmö", "malmo"]),
+    ("denmark", ["denmark", "danmark"]),
+    ("poland", ["poland", "polska", "warsaw", "warszawa", "kraków", "krakow", "wrocław", "wroclaw"]),
+    ("eu-other", ["vienna", "austria", "wien", "helsinki", "finland", "oslo", "norway", "prague",
+                  "praha", "czech", "budapest", "hungary", "athens", "greece", "luxembourg",
+                  "tallinn", "estonia", "vilnius", "lithuania", "bucharest", "romania",
+                  "sofia", "bulgaria"]),
 ]
 
-_REMOTE_HINTS = ["remote", "télétravail", "teletravail", "anywhere"]
-_EU_HINTS = ["europe", "eu", "emea", "france", "eea", "cet", "cest"]
+# Human labels + a stable display order for every canonical bucket. Single source
+# of truth reused by the harvester filter, the API catalog, and the dashboard.
+LOCATION_LABELS = [
+    ("paris", "Paris"),
+    ("london", "London"),
+    ("brussels", "Brussels"),
+    ("geneva", "Switzerland (Geneva / Zürich)"),
+    ("amsterdam", "Amsterdam"),
+    ("berlin", "Berlin"),
+    ("munich", "Munich"),
+    ("dublin", "Dublin"),
+    ("madrid", "Madrid"),
+    ("barcelona", "Barcelona"),
+    ("lisbon", "Lisbon"),
+    ("milan", "Milan"),
+    ("stockholm", "Stockholm"),
+    ("copenhagen", "Copenhagen"),
+    ("france", "France (other cities)"),
+    ("uk", "UK (other cities)"),
+    ("belgium", "Belgium (other)"),
+    ("switzerland", "Switzerland (other)"),
+    ("netherlands", "Netherlands"),
+    ("germany", "Germany (other)"),
+    ("spain", "Spain (other)"),
+    ("italy", "Italy (other)"),
+    ("portugal", "Portugal (other)"),
+    ("ireland", "Ireland (other)"),
+    ("sweden", "Sweden"),
+    ("denmark", "Denmark"),
+    ("poland", "Poland"),
+    ("eu-other", "Rest of Europe"),
+    ("remote-eu", "Remote (EU eligible)"),
+    ("remote-global", "Remote (Worldwide)"),
+]
+
+# The full set of locations the harvester can keep (used as the "all" default).
+TARGET_CITIES = {tok for tok, _ in LOCATION_LABELS}
+
+_REMOTE_HINTS = ["remote", "télétravail", "teletravail", "anywhere", "worldwide",
+                 "work from home", "distributed", "wfh"]
+_EU_HINTS = ["europe", " eu ", "eu)", "(eu", "emea", "france", "eea", "cet", "cest",
+             "united kingdom", "germany", "spain", "ireland", "netherlands", "belgium"]
+_GLOBAL_HINTS = ["anywhere", "worldwide", "global", "world wide", "work from anywhere"]
+# Region-level EU eligibility stated without a city or the word "remote"
+# (aggregators often list just "Europe", "EMEA", "EU", "United Kingdom").
+_EU_REGION = ["europe", "emea", "eea", "european union", " eu ", "(eu", "eu)",
+              "united kingdom", " uk "]
+# Remote roles that explicitly restrict to a non-EU region: dropped as "other".
+_NON_EU_HINTS = ["united states", " usa", "(usa", "u.s.", ", us", "(us)", "us only",
+                 "us-based", "us based", "canada", "brazil", "latam", "apac", "india",
+                 "australia", "singapore", "philippines", "nigeria", "mexico", "argentina",
+                 "united arab", "uae", "americas only", "north america"]
 
 # --- Role families ----------------------------------------------------------
 # Ordered by priority: first family whose keywords hit wins the label.
@@ -65,12 +148,24 @@ def classify_city(location_raw: Optional[str]) -> str:
     for city, needles in _CITY_PATTERNS:
         if any(n in loc for n in needles):
             return city
+    padded = f" {loc} "
+    # A bare EU region ("Europe", "EMEA", "EU") with no city is EU-eligible.
+    if any(h in padded for h in _EU_REGION):
+        return "remote-eu"
     is_remote = any(h in loc for h in _REMOTE_HINTS)
-    if is_remote and any(h in f" {loc} " for h in _EU_HINTS):
-        return "remote-eu"
-    if is_remote and loc.strip() in ("remote", "fully remote"):
-        # Bare "remote" — assume EU-eligible; the sponsorship flag is the real filter.
-        return "remote-eu"
+    if is_remote:
+        # A remote role pinned to a non-EU region is out of reach — drop it.
+        if any(h in padded for h in _NON_EU_HINTS):
+            return "other"
+        if any(h in padded for h in _EU_HINTS):
+            return "remote-eu"
+        if loc.strip() in ("remote", "fully remote", "100% remote", "remote work"):
+            # Bare "remote" — assume EU-eligible; the sponsorship flag is the real filter.
+            return "remote-eu"
+        if any(h in padded for h in _GLOBAL_HINTS):
+            return "remote-global"
+        # Generic remote with no geo at all: keep as worldwide-eligible.
+        return "remote-global"
     return "other"
 
 

@@ -16,6 +16,25 @@ class TestCity(unittest.TestCase):
         self.assertEqual(classify_city("New York, USA"), "other")
         self.assertEqual(classify_city(""), "other")
 
+    def test_broadened_eu_hubs(self):
+        self.assertEqual(classify_city("Amsterdam, Netherlands"), "amsterdam")
+        self.assertEqual(classify_city("Berlin, Germany"), "berlin")
+        self.assertEqual(classify_city("Dublin, Ireland"), "dublin")
+        self.assertEqual(classify_city("Barcelona, Spain"), "barcelona")
+        self.assertEqual(classify_city("Lisbon, Portugal"), "lisbon")
+        self.assertEqual(classify_city("Munich"), "munich")
+        # country-level catch-alls for non-hub cities
+        self.assertEqual(classify_city("Lyon, France"), "france")
+        self.assertEqual(classify_city("Hamburg, Germany"), "germany")
+        self.assertEqual(classify_city("Vienna, Austria"), "eu-other")
+
+    def test_remote_variants(self):
+        self.assertEqual(classify_city("Anywhere"), "remote-global")
+        self.assertEqual(classify_city("Remote, Worldwide"), "remote-global")
+        self.assertEqual(classify_city("Remote (EU)"), "remote-eu")
+        self.assertEqual(classify_city("Remote - US only"), "other")
+        self.assertEqual(classify_city("Remote (USA)"), "other")
+
 
 class TestRoleFamily(unittest.TestCase):
     def test_families(self):

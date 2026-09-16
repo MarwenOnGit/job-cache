@@ -1,0 +1,5 @@
+{"page": 0, "page_count": 1, "results": [
+  {"id": 555, "name": "Software Engineer", "contents": "<p>Java and microservices.</p>",
+   "company": {"name": "Muse Co"}, "locations": [{"name": "London, United Kingdom"}],
+   "publication_date": "2026-09-01T00:00:00", "refs": {"landing_page": "https://themuse.com/jobs/x"}}
+]}

@@ -1,4 +1,6 @@
-# job-hunter — Design Spec
+# job cache — Design Spec
+
+> Originally shipped as "job-hunter"; renamed to **job cache**.
 
 **Date:** 2026-09-11
 **Owner:** Sami Masmoudi
@@ -105,8 +107,8 @@ Python **FastAPI** (harvester + API + static serving) · **React + Vite** fronte
 **SQLite** store · file-based `queue/` for the Claude handshake. One launch script.
 
 ```
-job-hunter/
-  companies.yaml              # curated target list (Paris-startup-weighted)
+job-cache/
+  companies.yaml              # curated company boards + keyless aggregator sources
   cv/ cv.md                   # CV as markdown
   backend/
     app.py                    # FastAPI app + routes

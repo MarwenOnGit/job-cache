@@ -1,4 +1,4 @@
-# Install job-hunter on any laptop
+# Install job cache on any laptop
 
 Goal: get the app running in **one command**, with **no API keys** and **no paid services**.
 
