@@ -412,21 +412,125 @@ async function renderGrouped(kind) {
             : ["applications", "No applications yet", "Mark a job as applied and it lands here."]);
 }
 
-/* ── Application Q&A chat (Queue page) ──────────────────────────────────── */
-let qaPollTimer = null;
-let qaJobs = [];        // queued / materials_ready jobs available to @-reference
-let qaRefs = [];        // jobs the user has tagged for the current question
-let qaMentionList = [], qaMentionSel = 0;
-function stopQAPoll() { if (qaPollTimer) { clearInterval(qaPollTimer); qaPollTimer = null; } }
+/* ── Application Q&A chat (reusable: Queue page + Apply Workspace drawer) ─ */
+function createQaChat(prefix) {
+  const ids = { messages: `${prefix}Messages`, text: `${prefix}Text`, mention: `${prefix}Mention`, refs: `${prefix}Refs`, send: `${prefix}Send` };
+  const st = { jobs: [], refs: [], mentionList: [], mentionSel: 0, pollTimer: null };
+  const el = (id) => $("#" + id);
+
+  function stopPoll() { if (st.pollTimer) { clearInterval(st.pollTimer); st.pollTimer = null; } }
+  async function refreshJobs() {
+    try {
+      const a = await api("/api/applications");
+      // any job you've generated materials for is referenceable (queued, ready, applied, …)
+      st.jobs = Object.values(a.groups).flat().map((j) => ({ id: j.id, company: j.company, title: j.title, status: j.status }));
+    } catch (e) { st.jobs = []; }
+  }
+  function mentionCtx() {
+    const t = el(ids.text); if (!t) return null;
+    const upto = t.value.slice(0, t.selectionStart);
+    const m = upto.match(/(^|\s)@([\w-]*)$/);      // @ at a word boundary, up to the caret
+    return m ? { q: m[2], start: t.selectionStart - m[2].length - 1 } : null;
+  }
+  function handleMention() {
+    const ctx = mentionCtx();
+    if (!ctx) return hideMention();
+    const q = ctx.q.toLowerCase().replace(/[^a-z0-9]/g, "");
+    st.mentionList = st.jobs.filter((j) => (j.company + j.title).toLowerCase().replace(/[^a-z0-9]/g, "").includes(q)).slice(0, 6);
+    if (!st.mentionList.length) return hideMention();
+    st.mentionSel = 0; renderMention();
+  }
+  function renderMention() {
+    const pop = el(ids.mention); if (!pop) return;
+    pop.innerHTML = st.mentionList.map((j, i) =>
+      `<div class="qa-mi ${i === st.mentionSel ? "sel" : ""}" data-i="${i}"><span class="qa-mi-co">${esc(j.company)}</span><span class="qa-mi-title">${esc(j.title)}</span></div>`).join("");
+    pop.hidden = false;
+    pop.querySelectorAll(".qa-mi").forEach((elm) => (elm.onmousedown = (e) => { e.preventDefault(); pickMention(st.mentionList[+elm.dataset.i]); }));
+  }
+  function hideMention() { const p = el(ids.mention); if (p) { p.hidden = true; } st.mentionList = []; }
+  function pickMention(job) {
+    const t = el(ids.text); const ctx = mentionCtx(); if (!ctx || !job) return;
+    const token = "@" + job.company.replace(/\s+/g, "");
+    const before = t.value.slice(0, ctx.start);
+    const after = t.value.slice(t.selectionStart);
+    t.value = `${before}${token} ${after}`;
+    const caret = (before + token + " ").length;
+    t.setSelectionRange(caret, caret);
+    addRef(job); hideMention(); t.focus();
+  }
+  function keydown(e) {
+    const pop = el(ids.mention);
+    if (pop && !pop.hidden && st.mentionList.length) {
+      if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); st.mentionSel = (st.mentionSel + 1) % st.mentionList.length; return renderMention(); }
+      if (e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); st.mentionSel = (st.mentionSel - 1 + st.mentionList.length) % st.mentionList.length; return renderMention(); }
+      if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); return pickMention(st.mentionList[st.mentionSel]); }
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); return hideMention(); }
+    }
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); }
+  }
+  function addRef(job) { if (!st.refs.some((r) => r.id === job.id)) { st.refs.push(job); renderRefs(); } }
+  function removeRef(id) { st.refs = st.refs.filter((r) => r.id !== id); renderRefs(); }
+  function renderRefs() {
+    const bar = el(ids.refs); if (!bar) return;
+    bar.hidden = !st.refs.length;
+    bar.innerHTML = st.refs.map((r) =>
+      `<span class="qa-ref">${ico("jobs")}<span class="qa-ref-co">${esc(r.company)}</span><span class="qa-ref-t">${esc(r.title)}</span><button class="qa-ref-x" data-ref="${r.id}">${ICONS.x}</button></span>`).join("");
+    bar.querySelectorAll("[data-ref]").forEach((b) => (b.onclick = () => removeRef(b.dataset.ref)));
+  }
+  function bubble(q) {
+    const tag = q.company ? `<span class="qa-co">${esc(q.company)}</span>` : "";
+    const ans = q.status === "answered"
+      ? `<div class="qa-a"><div class="qa-a-text">${esc(q.answer)}</div>
+          <button class="btn btn-ghost btn-sm copy-btn" data-copyq="${q.id}" data-lbl="1" data-text="${esc(q.answer)}">${ico("copy", "btn-ico")}<span>Copy</span></button></div>`
+      : `<div class="qa-pending">${ico("clock")} Waiting for Claude — run <code>/answer</code> in Claude Code</div>`;
+    return `<div class="qa-msg">
+      <div class="qa-q"><span class="qa-q-text">${esc(q.question)}</span>${tag}
+        <button class="icon-btn qa-del" data-delq="${q.id}" title="Delete">${ICONS.trash}</button></div>
+      ${ans}</div>`;
+  }
+  async function load() {
+    const box = el(ids.messages); if (!box) return;
+    const data = await api("/api/questions");
+    if (!data.questions.length) {
+      box.innerHTML = `<div class="qa-empty">${ico("chat")}<p>No questions yet.<br>Ask one below, then run <code>/answer</code> in Claude Code.</p></div>`;
+    } else {
+      box.innerHTML = data.questions.map(bubble).join("");
+      box.querySelectorAll("[data-copyq]").forEach((b) => (b.onclick = () => copyText(b.dataset.text, b)));
+      box.querySelectorAll("[data-delq]").forEach((b) => (b.onclick = async () => { await api("/api/questions/" + b.dataset.delq, { method: "DELETE" }); load(); refreshCounts(); }));
+      box.scrollTop = box.scrollHeight;
+    }
+    stopPoll();
+    if (data.pending > 0) st.pollTimer = setInterval(() => { if (el(ids.messages)) load(); else stopPoll(); }, 4000);
+  }
+  async function send() {
+    const t = el(ids.text); const q = (t.value || "").trim(); if (!q) return;
+    const job_ids = st.refs.map((r) => r.id);
+    t.disabled = true;
+    try {
+      await api("/api/questions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q, job_ids }) });
+      toast(job_ids.length ? `Queued with ${job_ids.length} reference${job_ids.length > 1 ? "s" : ""} — run /answer` : "Question queued — run /answer in Claude Code", "info");
+      t.value = ""; st.refs = []; renderRefs(); hideMention();
+      await load(); refreshCounts();
+    } catch (e) { toast("Couldn't save question", "err"); }
+    finally { t.disabled = false; t.focus(); }
+  }
+  function wire() {
+    const t = el(ids.text);
+    t.addEventListener("input", handleMention);
+    t.addEventListener("keydown", keydown);
+    t.addEventListener("blur", () => setTimeout(hideMention, 150));
+    el(ids.send).onclick = send;
+    renderRefs();
+  }
+  return { ids, state: st, stopPoll, refreshJobs, addRef, wire, load };
+}
+const qaMain = createQaChat("qa");
+const qaWorkspace = createQaChat("wsQa");
+
 async function renderQAChat() {
   const host = $("#detail"); if (!host) return;
-  qaRefs = [];
-  try {
-    const a = await api("/api/applications");
-    // any job you've generated materials for is referenceable (queued, ready, applied, …)
-    qaJobs = Object.values(a.groups).flat()
-      .map((j) => ({ id: j.id, company: j.company, title: j.title, status: j.status }));
-  } catch (e) { qaJobs = []; }
+  qaMain.state.refs = [];
+  await qaMain.refreshJobs();
   host.innerHTML = `
     <div class="qa">
       <div class="qa-top">
@@ -445,102 +549,35 @@ async function renderQAChat() {
         </div>
       </div>
     </div>`;
-  const t = $("#qaText");
-  t.addEventListener("input", handleMention);
-  t.addEventListener("keydown", qaKeydown);
-  t.addEventListener("blur", () => setTimeout(hideMention, 150));
-  $("#qaSend").onclick = sendQuestion;
-  renderRefs();
-  await loadQA();
+  qaMain.wire();
+  await qaMain.load();
 }
 
-/* ── @-mention picker ──────────────────────────────────────────────────── */
-function mentionCtx() {
-  const t = $("#qaText"); if (!t) return null;
-  const upto = t.value.slice(0, t.selectionStart);
-  const m = upto.match(/(^|\s)@([\w-]*)$/);      // @ at a word boundary, up to the caret
-  return m ? { q: m[2], start: t.selectionStart - m[2].length - 1 } : null;
+/* ── Same Q&A chat, as a collapsible drawer inside the Apply Workspace ──── */
+function toggleWsQa() {
+  const drawer = $("#wsQa"); if (!drawer) return;
+  drawer.classList.toggle("open", wsQaOpenFlag);
 }
-function handleMention() {
-  const ctx = mentionCtx();
-  if (!ctx) return hideMention();
-  const q = ctx.q.toLowerCase().replace(/[^a-z0-9]/g, "");
-  qaMentionList = qaJobs.filter((j) => (j.company + j.title).toLowerCase().replace(/[^a-z0-9]/g, "").includes(q)).slice(0, 6);
-  if (!qaMentionList.length) return hideMention();
-  qaMentionSel = 0; renderMention();
-}
-function renderMention() {
-  const pop = $("#qaMention"); if (!pop) return;
-  pop.innerHTML = qaMentionList.map((j, i) =>
-    `<div class="qa-mi ${i === qaMentionSel ? "sel" : ""}" data-i="${i}"><span class="qa-mi-co">${esc(j.company)}</span><span class="qa-mi-title">${esc(j.title)}</span></div>`).join("");
-  pop.hidden = false;
-  pop.querySelectorAll(".qa-mi").forEach((el) => (el.onmousedown = (e) => { e.preventDefault(); pickMention(qaMentionList[+el.dataset.i]); }));
-}
-function hideMention() { const p = $("#qaMention"); if (p) { p.hidden = true; } qaMentionList = []; }
-function pickMention(job) {
-  const t = $("#qaText"); const ctx = mentionCtx(); if (!ctx || !job) return;
-  const token = "@" + job.company.replace(/\s+/g, "");
-  const before = t.value.slice(0, ctx.start);
-  const after = t.value.slice(t.selectionStart);
-  t.value = `${before}${token} ${after}`;
-  const caret = (before + token + " ").length;
-  t.setSelectionRange(caret, caret);
-  addRef(job); hideMention(); t.focus();
-}
-function qaKeydown(e) {
-  if (!$("#qaMention").hidden && qaMentionList.length) {
-    if (e.key === "ArrowDown") { e.preventDefault(); qaMentionSel = (qaMentionSel + 1) % qaMentionList.length; return renderMention(); }
-    if (e.key === "ArrowUp") { e.preventDefault(); qaMentionSel = (qaMentionSel - 1 + qaMentionList.length) % qaMentionList.length; return renderMention(); }
-    if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); return pickMention(qaMentionList[qaMentionSel]); }
-    if (e.key === "Escape") { e.preventDefault(); return hideMention(); }
-  }
-  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); sendQuestion(); }
-}
-function addRef(job) { if (!qaRefs.some((r) => r.id === job.id)) { qaRefs.push(job); renderRefs(); } }
-function removeRef(id) { qaRefs = qaRefs.filter((r) => r.id !== id); renderRefs(); }
-function renderRefs() {
-  const bar = $("#qaRefs"); if (!bar) return;
-  bar.hidden = !qaRefs.length;
-  bar.innerHTML = qaRefs.map((r) =>
-    `<span class="qa-ref">${ico("jobs")}<span class="qa-ref-co">${esc(r.company)}</span><span class="qa-ref-t">${esc(r.title)}</span><button class="qa-ref-x" data-ref="${r.id}">${ICONS.x}</button></span>`).join("");
-  bar.querySelectorAll("[data-ref]").forEach((b) => (b.onclick = () => removeRef(b.dataset.ref)));
-}
-function qaBubble(q) {
-  const tag = q.company ? `<span class="qa-co">${esc(q.company)}</span>` : "";
-  const ans = q.status === "answered"
-    ? `<div class="qa-a"><div class="qa-a-text">${esc(q.answer)}</div>
-        <button class="btn btn-ghost btn-sm copy-btn" data-copyq="${q.id}" data-lbl="1" data-text="${esc(q.answer)}">${ico("copy", "btn-ico")}<span>Copy</span></button></div>`
-    : `<div class="qa-pending">${ico("clock")} Waiting for Claude — run <code>/answer</code> in Claude Code</div>`;
-  return `<div class="qa-msg">
-    <div class="qa-q"><span class="qa-q-text">${esc(q.question)}</span>${tag}
-      <button class="icon-btn qa-del" data-delq="${q.id}" title="Delete">${ICONS.trash}</button></div>
-    ${ans}</div>`;
-}
-async function loadQA() {
-  const box = $("#qaMessages"); if (!box) return;
-  const data = await api("/api/questions");
-  if (!data.questions.length) {
-    box.innerHTML = `<div class="qa-empty">${ico("chat")}<p>No questions yet.<br>Ask one below, then run <code>/answer</code> in Claude Code.</p></div>`;
-  } else {
-    box.innerHTML = data.questions.map(qaBubble).join("");
-    box.querySelectorAll("[data-copyq]").forEach((b) => (b.onclick = () => copyText(b.dataset.text, b)));
-    box.querySelectorAll("[data-delq]").forEach((b) => (b.onclick = async () => { await api("/api/questions/" + b.dataset.delq, { method: "DELETE" }); loadQA(); refreshCounts(); }));
-    box.scrollTop = box.scrollHeight;
-  }
-  stopQAPoll();
-  if (data.pending > 0) qaPollTimer = setInterval(() => { if (page === "queue" && $("#qaMessages")) loadQA(); else stopQAPoll(); }, 4000);
-}
-async function sendQuestion() {
-  const t = $("#qaText"); const q = (t.value || "").trim(); if (!q) return;
-  const job_ids = qaRefs.map((r) => r.id);
-  t.disabled = true;
-  try {
-    await api("/api/questions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q, job_ids }) });
-    toast(job_ids.length ? `Queued with ${job_ids.length} reference${job_ids.length > 1 ? "s" : ""} — run /answer` : "Question queued — run /answer in Claude Code", "info");
-    t.value = ""; qaRefs = []; renderRefs(); hideMention();
-    await loadQA(); refreshCounts();
-  } catch (e) { toast("Couldn't save question", "err"); }
-  finally { t.disabled = false; t.focus(); }
+async function renderWsQaPanel(job) {
+  const host = $("#wsQaBody"); if (!host) return;
+  qaWorkspace.state.refs = [];
+  await qaWorkspace.refreshJobs();
+  if (job && job.id) qaWorkspace.addRef({ id: job.id, company: job.company, title: job.title });
+  host.innerHTML = `
+    <p class="qa-hint">Ask a question this form asks. <b>${esc(job.company)}</b> is referenced below — type <b>@</b> to add another queued job. After asking, run <code>/answer</code> in Claude Code.</p>
+    <div class="qa-messages" id="wsQaMessages">${skeletons(2)}</div>
+    <div class="qa-input">
+      <div class="qa-refs" id="wsQaRefs" hidden></div>
+      <div class="qa-row">
+        <div class="qa-textwrap">
+          <textarea class="input" id="wsQaText" rows="2" placeholder="e.g. Describe a full-stack project"></textarea>
+          <div class="qa-mention" id="wsQaMention" hidden></div>
+        </div>
+        <button class="btn btn-primary" id="wsQaSend">${ico("send", "btn-ico")}<span>Ask</span></button>
+      </div>
+    </div>`;
+  qaWorkspace.wire();
+  await qaWorkspace.load();
 }
 async function loadGrouped(groups, emptyArgs) {
   $("#list").innerHTML = skeletons(4);
@@ -792,6 +829,7 @@ function renderAbout() {
    Apply workspace (iframe + copyable materials)
    ═══════════════════════════════════════════════════════════════════════════ */
 let wsUseProxy = true;
+let wsQaOpenFlag = false;
 async function openWorkspace(id) {
   const j = await api("/api/jobs/" + id);
   if (!j.apply_url) { toast("No apply URL for this job", "err"); return; }
@@ -817,12 +855,21 @@ async function openWorkspace(id) {
           <div class="seg"><button id="wsProxy" class="${wsUseProxy ? "on" : ""}">Embedded</button><button id="wsDirect" class="${!wsUseProxy ? "on" : ""}">Direct</button></div>
           <button class="btn btn-ghost btn-sm" id="wsReload" title="Reload">${ico("refresh", "btn-ico")}</button>
           <button class="btn btn-primary btn-sm" id="wsPop">${ico("popout", "btn-ico")}<span>Pop out</span></button>
+          <button class="btn btn-ghost btn-sm" id="wsQaToggle" title="Application Q&amp;A">${ico("chat", "btn-ico")}<span>Q&amp;A</span></button>
         </div>
         <div class="ws-hint">${ico("info")}<span>Form blank or vanished after a second? Many application sites (Ashby, Workday…) block embedding.</span>
           <button class="ws-hint-pop" id="wsHintPop">${ico("popout")}Open it beside the app</button></div>
         <div class="ws-stage">
           <iframe class="ws-frame" id="wsFrame" src="${esc(frameSrc)}" sandbox="allow-forms allow-scripts allow-same-origin allow-popups"></iframe>
         </div>
+      </div>
+      <div class="ws-qa ${wsQaOpenFlag ? "open" : ""}" id="wsQa">
+        <div class="ws-qa-head">
+          <div class="section-h" style="margin:0">${ico("chat")} Application Q&amp;A</div>
+          <span class="spacer"></span>
+          <button class="icon-btn" id="wsQaClose" title="Collapse">${ICONS.x}</button>
+        </div>
+        <div class="ws-qa-body qa" id="wsQaBody">${skeletons(2)}</div>
       </div>
     </div>`;
   $("#workspace").hidden = false;
@@ -843,9 +890,12 @@ async function openWorkspace(id) {
   $("#wsHintPop").onclick = popOut;
   $("#wsProxy").onclick = () => { wsUseProxy = true; openWorkspace(id); };
   $("#wsDirect").onclick = () => { wsUseProxy = false; openWorkspace(id); };
+  $("#wsQaToggle").onclick = () => { wsQaOpenFlag = !wsQaOpenFlag; toggleWsQa(); };
+  $("#wsQaClose").onclick = () => { wsQaOpenFlag = false; toggleWsQa(); };
   const wa = $("#wsApply"); if (wa) wa.onclick = () => markApplied(id);  // closes workspace + goes to Queue
+  await renderWsQaPanel(j);
 }
-function closeWorkspace() { $("#workspace").hidden = true; $("#workspace").innerHTML = ""; }
+function closeWorkspace() { qaWorkspace.stopPoll(); $("#workspace").hidden = true; $("#workspace").innerHTML = ""; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Command palette
@@ -1113,7 +1163,14 @@ function moveSel(delta) {
 document.addEventListener("keydown", (e) => {
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); $("#palette").hidden ? openPalette() : closePalette(); return; }
-  if (e.key === "Escape") { if (!$("#workspace").hidden) return closeWorkspace(); if (!$("#modal").hidden) return closeModal(); if (!$("#palette").hidden) return closePalette(); }
+  if (e.key === "Escape") {
+    if (!$("#workspace").hidden) {
+      if (wsQaOpenFlag) { wsQaOpenFlag = false; return toggleWsQa(); }
+      return closeWorkspace();
+    }
+    if (!$("#modal").hidden) return closeModal();
+    if (!$("#palette").hidden) return closePalette();
+  }
   if (typing) return;
   if (gPending) {
     gPending = false;

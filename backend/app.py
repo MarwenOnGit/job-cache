@@ -474,7 +474,11 @@ def import_all(body: ImportBody):
     """Import a friend's export: adds their jobs + decision history (star/notes/status)."""
     conn = _conn()
     added = updated = 0
+    requeued = 0
     try:
+        done = queue_io.done_ids()
+        pending_ids = {fn[:-5] for fn in os.listdir(queue_io.PENDING_DIR)} \
+            if os.path.isdir(queue_io.PENDING_DIR) else set()
         for j in (body.jobs or []):
             existing = db.get_job(conn, j.get("id"))
             cols = ("company", "ats_type", "ats_job_id", "title", "location_raw", "city",
@@ -498,6 +502,11 @@ def import_all(body: ImportBody):
                 list(row.values()))
             updated += 1 if existing else 0
             added += 0 if existing else 1
+            # imported jobs already marked "queued" need their queue/pending/<id>.json
+            # handshake file recreated too -- it doesn't travel with the DB export.
+            if row["status"] == "queued" and row["id"] not in done and row["id"] not in pending_ids:
+                queue_io.write_pending(row)
+                requeued += 1
         # decisions history
         for e in (body.events or []):
             conn.execute("INSERT INTO events (ts, job_id, action, features) VALUES (?,?,?,?)",
@@ -525,6 +534,7 @@ def import_all(body: ImportBody):
             with open(CONFIG_PATH, "w", encoding="utf-8") as f:
                 json.dump(cfg, f, ensure_ascii=False, indent=2)
         return {"ok": True, "added": added, "updated": updated, "materials": mats,
+                "requeued": requeued,
                 "questions": len(body.questions or []), "events": len(body.events or [])}
     finally:
         conn.close()
