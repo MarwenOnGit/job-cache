@@ -71,7 +71,25 @@ kbd {
 /* ============================================================================
    App shell
    ========================================================================== */
-.app { display: grid; grid-template-columns: var(--sb) 1fr; height: 100vh; overflow: hidden; }
+:root { --banner-h: 0px; }
+.app { display: grid; grid-template-columns: var(--sb) 1fr; height: calc(100vh - var(--banner-h)); overflow: hidden; }
+
+.update-banner {
+  display: flex; align-items: center; gap: 12px; padding: 9px 18px;
+  background: var(--accent); color: var(--accent-ink); font-size: 13px; font-weight: 550;
+}
+.update-banner .ico { width: 16px; height: 16px; flex: none; }
+.update-banner .ub-text { flex: 1; min-width: 0; }
+.update-banner code {
+  font-family: ui-monospace, Menlo, monospace; font-size: .93em; font-weight: 600;
+  background: color-mix(in srgb, var(--accent-ink) 14%, transparent); border-radius: 5px; padding: 1px 6px;
+}
+.update-banner .ub-x {
+  width: 24px; height: 24px; display: grid; place-items: center; border-radius: 999px; cursor: pointer;
+  background: transparent; border: 0; color: var(--accent-ink); opacity: .75; flex: none;
+}
+.update-banner .ub-x:hover { opacity: 1; background: color-mix(in srgb, var(--accent-ink) 14%, transparent); }
+.update-banner .ub-x svg { width: 14px; height: 14px; }
 
 .sidebar {
   background: var(--sidebar); border-right: 1px solid var(--line);
