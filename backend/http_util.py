@@ -6,7 +6,7 @@ import urllib.error
 import urllib.request
 from typing import Any, Optional
 
-_UA = "job-hunter/1.0 (+https://github.com/samiimasmoudii)"
+_UA = "job-cache/1.0 (+https://github.com/samiimasmoudii)"
 
 
 def get_json(url: str, timeout: int = 20, headers: Optional[dict] = None) -> Any:

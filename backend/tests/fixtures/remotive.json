@@ -1,0 +1,6 @@
+{"job-count": 1, "jobs": [
+  {"id": 1, "url": "https://remotive.com/remote-jobs/x", "title": "Backend Engineer",
+   "company_name": "Acme Remote", "category": "Software Development",
+   "candidate_required_location": "Europe", "publication_date": "2026-09-01T00:00:00",
+   "description": "<p>Build APIs with Python and Django.</p>"}
+]}

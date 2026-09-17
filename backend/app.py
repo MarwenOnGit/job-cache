@@ -19,6 +19,7 @@ import queue_io
 import tracker
 import harvester
 import learn
+import prefs as prefs_mod
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND_DIR = os.path.join(ROOT, "frontend")
@@ -29,7 +30,7 @@ VALID_STATUSES = {
     "interview", "offer", "rejected", "closed", "dismissed",
 }
 
-app = FastAPI(title="job-hunter")
+app = FastAPI(title="job cache")
 
 
 @app.middleware("http")
@@ -252,6 +253,32 @@ def save_profile(body: ProfileBody):
     return {"ok": True}
 
 
+# --- structured search preferences (countries, roles, titles, keywords) ------
+class SearchPrefsBody(BaseModel):
+    locations: Optional[list] = None
+    role_families: Optional[list] = None
+    titles: Optional[list] = None
+    keywords: Optional[list] = None
+    experience: Optional[str] = None
+    language: Optional[str] = None
+
+
+@app.get("/api/preferences")
+def get_preferences():
+    """The structured search preferences (what/where to search), plus the option
+    catalog for the editor. Seeded from onboarding on first view so nothing is
+    hidden behind a from-scratch re-onboarding."""
+    return {"preferences": prefs_mod.load_or_seed(),
+            "saved": os.path.exists(prefs_mod.PREFS_JSON_PATH),
+            "catalog": prefs_mod.catalog()}
+
+
+@app.post("/api/preferences")
+def set_preferences(body: SearchPrefsBody):
+    saved = prefs_mod.save_structured(body.model_dump())
+    return {"ok": True, "preferences": saved}
+
+
 def _read_config() -> dict:
     try:
         with open(CONFIG_PATH, encoding="utf-8") as f:
@@ -454,7 +481,7 @@ def export_all():
             "questions": db.get_questions(conn),
             "materials": queue_io.export_materials(),
             "insights": learn.insights(conn),
-        }, headers={"Content-Disposition": "attachment; filename=job-hunter-export.json"})
+        }, headers={"Content-Disposition": "attachment; filename=job-cache-export.json"})
     finally:
         conn.close()
 

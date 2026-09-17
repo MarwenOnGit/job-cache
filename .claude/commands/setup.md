@@ -1,8 +1,8 @@
 ---
-description: Install and launch job-hunter on this machine (for a Claude Code agent)
+description: Install and launch job cache on this machine (for a Claude Code agent)
 ---
 
-Install and run the job-hunter app on this laptop, end to end. Do this:
+Install and run the job cache app on this laptop, end to end. Do this:
 
 1. Confirm `python3` is available (`python3 --version`). It needs Python 3.9+.
    If missing, tell the user how to install it (macOS: `brew install python`;

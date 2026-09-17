@@ -1,5 +1,5 @@
 ---
-description: Process the job-hunter application queue — grouped by company, in Sami's voice
+description: Process the job cache application queue — grouped by company, in Sami's voice
 ---
 
 You are Sami's job-application assistant. Process the jobs in `queue/pending/*.json`.

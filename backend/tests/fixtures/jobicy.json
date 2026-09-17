@@ -1,0 +1,6 @@
+{"jobs": [
+  {"id": 123, "url": "https://jobicy.com/jobs/x", "jobTitle": "Machine Learning Engineer",
+   "companyName": "Jobicy Co", "jobGeo": "Europe", "jobLevel": "Mid",
+   "jobExcerpt": "ML role", "jobDescription": "<p>Deep learning and NLP models.</p>",
+   "pubDate": "2026-08-15 10:00:00"}
+]}

@@ -1,7 +1,8 @@
-# job-hunter
+# job cache
 
 A local, **fully free** job-search + assisted-application tool for software / AI / data
-roles in **Paris, Brussels, Geneva, London** (and remote-EU). It aggregates real postings
+roles across **Europe** (Paris, London, Brussels, Amsterdam, Berlin, Dublin, Madrid,
+Barcelona and more, plus EU-eligible and worldwide remote). It aggregates real postings
 from free public job-board APIs, ranks them against your CV, and — with **no API keys and
 no paid services** — drafts tailored application materials using **Claude Code running in
 your terminal** as the AI engine.
@@ -46,9 +47,24 @@ Then:
 
 ## Data sources
 
-Free **public ATS JSON** endpoints — Greenhouse, Lever, Ashby, SmartRecruiters, and
-best-effort Workday — for a curated, Paris-startup-weighted list in
-[`companies.yaml`](companies.yaml). Adding a company is one line. No scraping, no ToS risk.
+Two complementary, entirely keyless layers, both configured in [`companies.yaml`](companies.yaml):
+
+- **Curated single-company ATS boards** — Greenhouse, Lever, Ashby, SmartRecruiters,
+  Workable, and best-effort Workday — for the ~70 employers you specifically care about
+  (Paris-startup-weighted, plus London / Amsterdam / Berlin / etc.). Adding one is a single line.
+- **Keyless aggregators** — Remotive, Arbeitnow, Jobicy, Himalayas, RemoteOK, and The Muse.
+  Each source fans out to *hundreds* of employers in one call, so the search is wide out of
+  the box (a fresh harvest of just the aggregators pulls ~900 relevant EU/remote roles across
+  ~500 companies). Tune their params (region, category, pages) or comment any out.
+
+No scraping, no ToS risk. Sources that stop resolving are skipped and reported in the summary.
+
+## What you search for
+
+Your **search preferences** — locations/countries, role families, target job titles,
+keywords, experience, language — drive both what gets harvested and how it's ranked. Edit
+them any time in **Profile → Search preferences** (no need to re-onboard). Leave any group
+empty to include everything, which is the broadest possible search.
 
 ## Ranking & flags
 
@@ -77,7 +93,9 @@ A keyboard-first, single-page app (dark **and** light themes) with a left sideba
   (same file-handshake as `/apply`, no API keys).
 - **Applications** — your tracker (*Applied → Interviewing → Offers → Closed*) + **CSV** export.
 - **Insights** — *what the model has learned about you* (see below).
-- **Profile** — view **and edit** `cv/cv.md` + `preferences.md` right in the app.
+- **Profile** — your **Search preferences** (locations/countries, role families, target
+  titles, keywords, experience, language — with a **Save & re-harvest** button), plus view
+  **and edit** `cv/cv.md` and your application-voice `preferences.md` right in the app.
 
 **Command palette** (`⌘K` / `Ctrl+K`): jump to any page, search jobs, run commands.
 **Shortcuts**: `g` then `o/j/q/a/i/p` for pages · `j/k` move · `s` star · `e` queue · `x`
@@ -92,7 +110,7 @@ the other. Pages that block embedding (some SPA ATSs) fall back to **Direct** / 
 
 ### The learning model
 
-job-hunter learns your taste from your own decisions — no LLM, pure stdlib, zero setup. Every
+job cache learns your taste from your own decisions — no LLM, pure stdlib, zero setup. Every
 time you queue, apply, star (positive) or dismiss / reject (negative) a role, it updates a
 smoothed log-odds model over the job's features (role family, city, seniority, company,
 startup-vs-big, sponsorship, and title/skill keywords). It then:
@@ -132,16 +150,17 @@ command.
 ## Layout
 
 ```
-companies.yaml            # target list
+companies.yaml            # curated company ATS boards + keyless aggregator sources
 cv/cv.example.md          # CV template (your real cv/cv.md is gitignored)
 preferences.example.md    # preferences template (your real preferences.md is gitignored)
-backend/                  # FastAPI app, harvester, ranker, flagger, seniority, tracker, learn, adapters, tests
+backend/                  # FastAPI app, harvester, ranker, flagger, seniority, tracker, learn, prefs, adapters, tests
+  prefs.py                # structured search preferences (locations/roles/titles/keywords)
   learn.py                # the preference-learning model (pure stdlib)
   serve.py                # dual-stack launcher (localhost over IPv4 + IPv6)
 frontend/                 # vanilla-JS dashboard (Overview / Jobs / Queue / Applications / Insights / Profile / How-to-use)
 queue/pending/            # the Claude Code trigger (job selections) — gitignored
 applications/             # your generated materials per company — gitignored
-data/                     # SQLite DB, model.json, config.json, onboarding.json — gitignored
+data/                     # SQLite DB, model.json, config.json, onboarding.json, preferences.json — gitignored
 queue/questions/          # Application Q&A handshake (pending/*.json -> answered/*.md) — gitignored
 .claude/commands/         # /onboard (new user), /apply (materials), /answer (questions), /setup (install)
 run.sh · install.sh       # one-click launch / setup

@@ -64,18 +64,26 @@ def _recency(posted_at: Optional[str], now: Optional[datetime] = None) -> float:
     return max(0.0, 1.0 - days / _RECENCY_WINDOW_DAYS)
 
 
-def _skills_overlap(text: str) -> Tuple[float, List[str]]:
+def _skills_overlap(text: str, extra_skills: Optional[List[str]] = None) -> Tuple[float, List[str]]:
     hay = f" {text.lower()} "
-    matched = [s for s in CV_SKILLS if s in hay]
+    # The base CV skills plus any keywords/titles the user set in their search
+    # preferences, so ranking follows what they actually want, not just the CV.
+    vocab = list(CV_SKILLS)
+    for s in (extra_skills or []):
+        s = (s or "").strip().lower()
+        if s and s not in vocab:
+            vocab.append(s)
+    matched = [s for s in vocab if s in hay]
     score = min(1.0, len(matched) / _SKILLS_SATURATION)
     return score, matched
 
 
 def score_job(title: str, description: str, posted_at: Optional[str] = None,
-              now: Optional[datetime] = None) -> Tuple[float, List[str]]:
+              now: Optional[datetime] = None,
+              extra_skills: Optional[List[str]] = None) -> Tuple[float, List[str]]:
     """Return (match_score in [0,1], human-readable reasons)."""
     combined = f"{title}\n{description}"
-    skills_score, matched = _skills_overlap(combined)
+    skills_score, matched = _skills_overlap(combined, extra_skills)
 
     if title_matches_family(title):
         role_score = 1.0
