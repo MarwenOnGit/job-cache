@@ -1249,6 +1249,26 @@ async function refreshCounts() {
   } catch (e) {}
 }
 
+/* ── Update banner: is origin/main ahead of what's running locally? ─────── */
+function setBannerHeight() {
+  const el = $("#updateBanner");
+  document.documentElement.style.setProperty("--banner-h", el && !el.hidden ? el.offsetHeight + "px" : "0px");
+}
+async function checkForUpdate() {
+  let v;
+  try { v = await api("/api/version"); } catch (e) { return; }
+  const el = $("#updateBanner"); if (!el) return;
+  if (!v || !v.available || v.up_to_date) { el.hidden = true; setBannerHeight(); return; }
+  if (localStorage.getItem("jc-update-dismissed") === v.latest) { el.hidden = true; setBannerHeight(); return; }
+  const behind = v.behind ? `${v.behind} commit${v.behind === 1 ? "" : "s"} behind` : "out of date";
+  el.innerHTML = `${ico("info")}<span class="ub-text">A newer version of job cache is available (${esc(behind)}). Run <code>git pull origin main</code>, then restart the app to update.</span>
+    <button class="ub-x" id="ubDismiss" title="Dismiss">${ICONS.x}</button>`;
+  el.hidden = false;
+  $("#ubDismiss").onclick = () => { el.hidden = true; setBannerHeight(); localStorage.setItem("jc-update-dismissed", v.latest); };
+  setBannerHeight();
+}
+window.addEventListener("resize", () => { if (!$("#updateBanner")?.hidden) setBannerHeight(); });
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Keyboard
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -1308,6 +1328,8 @@ $("#themeBtn").onclick = toggleTheme;
     await setPage(NAV.some((n) => n.id === boot.get("page")) ? boot.get("page") : "overview");
     maybeOnboard();
     setInterval(refreshCounts, 15000);
+    checkForUpdate();
+    setInterval(checkForUpdate, 600000);
   } catch (err) {
     showFatal(err);
   }

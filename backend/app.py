@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
+import time
 import urllib.request
 import urllib.error
 import uuid
@@ -147,6 +149,55 @@ def insights():
         return learn.insights(conn)
     finally:
         conn.close()
+
+
+# --- update check -------------------------------------------------------
+_VERSION_CACHE = {"checked_at": 0.0, "data": None}
+_VERSION_CACHE_TTL = 600  # seconds; a git fetch hits the network, don't do it on every poll
+
+
+def _git(*args, timeout=6) -> Optional[str]:
+    try:
+        res = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, timeout=timeout)
+        return res.stdout.strip() if res.returncode == 0 else None
+    except Exception:  # noqa: BLE001 - best-effort, git/network may be unavailable
+        return None
+
+
+def _check_update() -> dict:
+    """Compare local HEAD to origin/main. Silent (available: False) on any git/network failure."""
+    local_sha = _git("rev-parse", "HEAD")
+    if not local_sha:
+        return {"available": False}
+    if _git("fetch", "origin", "main", "--quiet") is None:
+        return {"available": False}
+    remote_sha = _git("rev-parse", "origin/main")
+    if not remote_sha:
+        return {"available": False}
+    if remote_sha == local_sha:
+        return {"available": True, "up_to_date": True}
+    behind = _git("rev-list", "--count", f"{local_sha}..origin/main")
+    behind_n = int(behind) if behind and behind.isdigit() else None
+    if not behind_n:
+        # sha differs but origin/main has nothing local doesn't already have
+        # (e.g. a local feature branch ahead of main) — nothing to pull.
+        return {"available": True, "up_to_date": True}
+    return {
+        "available": True,
+        "up_to_date": False,
+        "behind": behind_n,
+        "current": local_sha[:7],
+        "latest": remote_sha[:7],
+    }
+
+
+@app.get("/api/version")
+def version_check():
+    now = time.time()
+    if _VERSION_CACHE["data"] is None or now - _VERSION_CACHE["checked_at"] > _VERSION_CACHE_TTL:
+        _VERSION_CACHE["data"] = _check_update()
+        _VERSION_CACHE["checked_at"] = now
+    return _VERSION_CACHE["data"]
 
 
 def _reconcile_questions(conn) -> None:
