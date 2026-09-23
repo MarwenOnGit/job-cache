@@ -20,6 +20,19 @@ def arbeitnow_job(**kw):
     return j
 
 
+class TestIsArbeitnowUrl(unittest.TestCase):
+    def test_recognizes_any_arbeitnow_tld(self):
+        self.assertTrue(app_module._is_arbeitnow_url("https://www.arbeitnow.com/jobs/x"))
+        self.assertTrue(app_module._is_arbeitnow_url("https://arbeitnow.com/jobs/x"))
+        self.assertTrue(app_module._is_arbeitnow_url("https://www.arbeitnow.fr/jobs/x"))
+        self.assertTrue(app_module._is_arbeitnow_url("https://www.arbeitnow.co/jobs/x"))
+
+    def test_rejects_other_hosts(self):
+        self.assertFalse(app_module._is_arbeitnow_url("https://jobs.ashbyhq.com/acme/x"))
+        self.assertFalse(app_module._is_arbeitnow_url("https://boards.greenhouse.io/acme/jobs/1"))
+        self.assertFalse(app_module._is_arbeitnow_url(""))
+
+
 class TestResolveArbeitnowApplyUrl(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
@@ -83,6 +96,24 @@ class TestResolveArbeitnowApplyUrl(unittest.TestCase):
         with patch("http_util.resolve_redirect") as m:
             app_module._resolve_arbeitnow_apply_url(self.conn, row)
         m.assert_not_called()
+
+    def test_localized_tld_is_recognized_and_resolved(self):
+        # Arbeitnow runs the same platform on country TLDs (.fr, .co, ...) —
+        # a job harvested from arbeitnow.fr must resolve the same way as .com.
+        row = self._seeded(apply_url="https://www.arbeitnow.fr/jobs/companies/vibe/data-engineer-295755")
+        with patch("http_util.resolve_redirect",
+                    return_value=(302, "https://jobs.ashbyhq.com/vibe/45d3/application")) as m:
+            app_module._resolve_arbeitnow_apply_url(self.conn, row)
+        m.assert_called_once_with("https://www.arbeitnow.fr/jobs/companies/vibe/data-engineer-295755/apply")
+        self.assertEqual(row["apply_url"], "https://jobs.ashbyhq.com/vibe/45d3/application")
+
+    def test_redirect_back_to_own_localized_domain_is_ignored(self):
+        row = self._seeded(apply_url="https://www.arbeitnow.fr/jobs/companies/vibe/data-engineer-295755")
+        original = row["apply_url"]
+        with patch("http_util.resolve_redirect",
+                    return_value=(302, "https://www.arbeitnow.fr/jobs/companies/vibe/data-engineer-295755")):
+            app_module._resolve_arbeitnow_apply_url(self.conn, row)
+        self.assertEqual(row["apply_url"], original)
 
 
 if __name__ == "__main__":

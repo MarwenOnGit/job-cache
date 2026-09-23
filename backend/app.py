@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import time
 import urllib.request
@@ -67,6 +68,16 @@ def _refresh_csv(conn) -> None:
         pass
 
 
+# Arbeitnow runs localized TLDs for the same platform (arbeitnow.com,
+# arbeitnow.fr, arbeitnow.co, ...) — match the "arbeitnow.<tld>" host itself,
+# not a hardcoded ".com", so the redirect fix below applies to all of them.
+_ARBEITNOW_HOST_RE = re.compile(r"^(www\.)?arbeitnow\.[a-z]{2,}$")
+
+
+def _is_arbeitnow_url(url: str) -> bool:
+    return bool(_ARBEITNOW_HOST_RE.match(urlparse(url).netloc.lower()))
+
+
 def _resolve_arbeitnow_apply_url(conn, job: dict) -> None:
     """Arbeitnow doesn't host an application form itself: its own "Apply Now"
     button is a same-site /apply route that either 302s to the real ATS, or
@@ -76,7 +87,7 @@ def _resolve_arbeitnow_apply_url(conn, job: dict) -> None:
     cost per job rather than something every harvest has to pay for.
     """
     url = job.get("apply_url") or ""
-    if job.get("ats_type") != "arbeitnow" or "arbeitnow.com" not in url:
+    if job.get("ats_type") != "arbeitnow" or not _is_arbeitnow_url(url):
         return
     probe = url.rstrip("/") + "/apply"
     result = http_util.resolve_redirect(probe)
@@ -85,7 +96,7 @@ def _resolve_arbeitnow_apply_url(conn, job: dict) -> None:
     status, location = result
     if status in (301, 302, 303, 307, 308) and location:
         dest = urljoin(probe, location)
-        if urlparse(dest).netloc and "arbeitnow.com" not in urlparse(dest).netloc:
+        if urlparse(dest).netloc and not _is_arbeitnow_url(dest):
             job["apply_url"] = dest
             db.set_apply_url(conn, job["id"], dest)
     elif status == 200:
