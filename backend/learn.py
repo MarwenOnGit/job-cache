@@ -33,6 +33,11 @@ _STOP = {
     "this", "from", "have", "has", "was", "not", "but", "all", "can", "job", "role",
     "team", "work", "working", "years", "year", "experience", "x", "f", "m", "h",
     "senior", "junior", "staff", "principal", "lead", "mid", "level",  # seniority handled separately
+    # generic title nouns already captured by role_family — leaving them
+    # learnable would let one over-dismissed title (e.g. every "Site
+    # Reliability Engineer") smear a strong negative weight onto every
+    # other job that merely happens to share the word "engineer".
+    "engineer", "developer", "scientist", "analyst", "architect", "specialist", "consultant", "manager",
 }
 _TOKEN_RE = re.compile(r"[a-z0-9+#]+")
 
@@ -55,8 +60,20 @@ NS_LABELS = {
 
 def _tokens(job: dict) -> List[str]:
     title = (job.get("title") or "").lower()
-    toks = {t for t in _TOKEN_RE.findall(title) if len(t) >= 3 and t not in _STOP}
-    hay = f" {title} {(job.get('description') or '').lower()} "
+    desc = (job.get("description") or "").lower()
+    # Free-form tokenization stays title-only: descriptions are long, often in
+    # other languages, and quickly drown the model in noise (foreign stopwords,
+    # filler words) that just happens to correlate with a handful of decisions.
+    # Description text still counts, but only through the curated skill list
+    # below, which is exactly the trade-off that keeps this explainable.
+    title_words = [t for t in _TOKEN_RE.findall(title) if len(t) >= 3 and t not in _STOP]
+    toks = set(title_words)
+    # adjacent-word phrases from the title — specific enough to isolate one
+    # exact title pattern ("site reliability") from the generic words it's
+    # built from, so a title that gets dismissed a lot doesn't smear its
+    # negative weight onto every other job sharing one of those words.
+    toks |= {f"{a} {b}" for a, b in zip(title_words, title_words[1:])}
+    hay = f" {title} {desc} "
     for kw in _SKILL_KW:
         if f" {kw} " in hay or kw in title:
             toks.add(kw)
@@ -112,19 +129,31 @@ def train(jobs: List[dict]) -> dict:
     base = math.log((P + 1) / (N + 1))
     weights: Dict[str, float] = {}
     support: Dict[str, List[int]] = {}
-    SHRINK = 2.0  # regularization: damp weights learned from few examples
+    CAT_SHRINK = 2.0   # categorical facets (role/city/company/…): trust grows quickly with evidence
+    KW_SHRINK = 3.0    # keywords/phrases: needs more evidence before being trusted at all
+    KW_CAP = 1.5       # ...and even then, never swing a score harder than a strong categorical signal
     for key in set(pos) | set(neg):
         p, n = pos[key], neg[key]
         total = p + n
         # keywords need to appear at least twice to earn a weight (kills one-off noise);
         # categorical facets (role/city/…) are meaningful even from a single job.
-        min_support = 2 if key.startswith("kw:") else 1
+        is_kw = key.startswith("kw:")
+        min_support = 2 if is_kw else 1
         if total < min_support:
             continue
-        # log-odds relative to base rate, Laplace-smoothed, then shrunk toward 0
-        # in proportion to how little evidence backs it.
+        # log-odds relative to base rate, Laplace-smoothed.
         raw = math.log((p + 1.0) / (n + 1.0)) - base
-        w = raw * (total / (total + SHRINK))
+        if is_kw:
+            # Confidence grows with log(evidence), not evidence itself: dismissing
+            # 1000 postings that share one phrase carries barely more weight than
+            # dismissing 50 of them, so one over-represented title can't drown out
+            # every other job that happens to share a common word with it.
+            conf = math.log1p(total) / (math.log1p(total) + KW_SHRINK)
+            w = max(-KW_CAP, min(KW_CAP, raw * conf))
+        else:
+            # categorical facets: shrink toward 0 in proportion to how little
+            # evidence backs them, but let real volume compound normally.
+            w = raw * (total / (total + CAT_SHRINK))
         if abs(w) < 0.01:
             continue
         weights[key] = round(w, 4)
