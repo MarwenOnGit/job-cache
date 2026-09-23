@@ -661,21 +661,43 @@ def import_all(body: ImportBody):
 
 
 # --- apply workspace: iframe proxy -----------------------------------------
+# ATS platforms whose client app routes entirely off window.location (React-
+# style SPA routers). Serving their HTML through srcdoc/a proxy URL gives the
+# iframe a location that doesn't match their real path, so their own router
+# can't find the posting and renders ITS OWN "page not found" — which reads as
+# a dead job to the user even though the real page is fine. No text-rewriting
+# trick fixes this without a real reverse proxy, so skip the fetch entirely and
+# go straight to the blocked-embed fallback instead of showing that misleading
+# page inside our iframe.
+_NON_EMBEDDABLE_HOSTS = ("ashbyhq.com", "myworkdayjobs.com")
+
+
+def _is_known_non_embeddable(url: str) -> bool:
+    host = urlparse(url).netloc.lower()
+    return any(host == h or host.endswith("." + h) for h in _NON_EMBEDDABLE_HOSTS)
+
+
 @app.get("/api/proxy")
 def proxy(url: str):
     """Best-effort fetch of an apply page with frame-blocking headers stripped, so it
     can render inside the Apply Workspace iframe for side-by-side copy-paste.
 
-    Classic server-rendered ATS pages (Greenhouse, Lever) usually work; heavy SPAs
-    (Ashby, Workday) may not fully render — the UI offers a 'pop out' fallback.
+    Classic server-rendered ATS pages (Greenhouse, Lever) usually work; known
+    SPA-only platforms (see _NON_EMBEDDABLE_HOSTS) are rejected up front.
 
-    On failure (dead link, refuses to answer, times out, isn't HTML) this returns
-    a JSON error with a non-2xx status instead of a 200 HTML page, so the frontend
-    can tell success from failure and show its own blocked-embed card rather than
-    an error snippet rendered inside the iframe.
+    On failure (dead link, refuses to answer, times out, isn't HTML, or is a
+    known-non-embeddable host) this returns a JSON error with a non-2xx status
+    instead of a 200 HTML page, so the frontend can tell success from failure
+    and show its own blocked-embed card rather than a misleading page (either
+    an error snippet, or the ATS's own client-side "not found") rendered
+    inside the iframe.
     """
     if not (url.startswith("http://") or url.startswith("https://")):
         raise HTTPException(400, "bad url")
+    if _is_known_non_embeddable(url):
+        return JSONResponse(
+            {"ok": False, "status": None, "reason": "This site's application form doesn't survive embedding"},
+            status_code=502)
     req = urllib.request.Request(url, headers={
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
                       "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
