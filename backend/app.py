@@ -744,7 +744,9 @@ def _inlined_index() -> str:
     js = queue_io._read(os.path.join(FRONTEND_DIR, "app.js"))
     import re as _re
     # function replacements so backslashes in CSS/JS are NOT treated as regex group refs
-    html = _re.sub(r'<link rel="stylesheet"[^>]*>', lambda _m: f"<style>{css}</style>", html, count=1)
+    # match only our own stylesheet link (by href), not the Google Fonts <link
+    # rel="stylesheet"> in <head> — inlining that one would drop the font import.
+    html = _re.sub(r'<link rel="stylesheet" href="/styles\.css[^"]*"\s*/?>', lambda _m: f"<style>{css}</style>", html, count=1)
     html = _re.sub(r'<script src="/app\.js[^"]*"></script>', lambda _m: f"<script>{js}</script>", html, count=1)
     return html
 
