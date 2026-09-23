@@ -261,6 +261,9 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
 .card.active { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); box-shadow: inset 2px 0 0 var(--accent); }
 .card.just-selected { animation: cardIn .95s var(--ease-out); }
 @keyframes cardIn { 0% { background: color-mix(in srgb, var(--accent) 22%, var(--surface)); } 100% { background: color-mix(in srgb, var(--accent) 7%, var(--surface)); } }
+/* dismiss/queue: the card itself quietly disappears, no list-wide reload */
+.card.removing { animation: cardOut .16s var(--ease-out) forwards; pointer-events: none; }
+@keyframes cardOut { to { opacity: 0; transform: scale(.96); } }
 /* detail fades in when the next job slides into view after queue/dismiss */
 .detail.fade-swap { animation: fadeSwap .3s var(--ease-out); }
 @keyframes fadeSwap { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }

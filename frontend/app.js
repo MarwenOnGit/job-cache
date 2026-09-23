@@ -85,6 +85,7 @@ const NAV = [
 ];
 const STATUSES = ["interested", "queued", "materials_ready", "applied", "interview", "offer", "rejected"];
 const QUEUE_GROUPS = [["materials_ready", "Ready for your review", "check"], ["queued", "Queued for Claude", "queue"]];
+const QUEUE_EMPTY_ARGS = ["queue", "Your queue is empty", "Queue a job from <b>Jobs</b> and it'll show up here — or use the Q&amp;A assistant to draft answers to application questions."];
 const APP_GROUPS = [["applied", "Applied", "send"], ["interview", "Interviewing", "mic"], ["offer", "Offers", "trophy"], ["rejected", "Closed", "x"]];
 const STATUS_COLOR = {
   interested: "var(--faint)", queued: "var(--accent)", materials_ready: "var(--ok)",
@@ -296,7 +297,7 @@ async function renderDetail(id) {
   wire("#starBtn", () => toggleStar(id));
   wire("#dismissBtn", () => dismissJob(id));
   wire("#notesSave", async () => { await api(`/api/jobs/${id}/notes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes: $("#notesArea").value }) }); toast("Notes saved", "ok"); });
-  const ss = $("#statusSel", host); if (ss) ss.onchange = async (e) => { await api(`/api/jobs/${id}/status`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: e.target.value }) }); toast(`Status → ${label(e.target.value)}`, "ok"); reload(); };
+  const ss = $("#statusSel", host); if (ss) ss.onchange = async (e) => { await api(`/api/jobs/${id}/status`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: e.target.value }) }); toast(`Status → ${label(e.target.value)}`, "ok"); softReload(); };
 
   if (fadeDetail) {   // the next job just advanced into view: fade it in + flag the card
     fadeDetail = false;
@@ -316,29 +317,44 @@ function nextAfter(id) {
   const remaining = listCache.filter((x) => x !== id);
   return remaining[idx] || remaining[idx - 1] || null;
 }
+// Drop one card out of the visible list in place: fade it out, remove it from
+// the DOM and from listCache, but leave every other card untouched. The list
+// only ever gets refetched (with its loading skeleton) when it runs dry or on
+// an explicit Refresh — never as a side effect of a single dismiss/queue.
+function removeCard(id) {
+  listCache = listCache.filter((x) => x !== id);
+  const card = $(`.card[data-id="${id}"]`);
+  if (card) {
+    card.addEventListener("animationend", () => card.remove(), { once: true });
+    card.classList.add("removing");
+  }
+}
+// Advance the UI first, let the API call catch up in the background — the
+// dismiss/queue POST no longer blocks the move to the next job.
+async function advanceAfter(id, apiCall, onOk, onErr) {
+  const next = (selectedId === id) ? nextAfter(id) : selectedId;
+  removeCard(id);
+  selectedId = next;
+  fadeDetail = !!next;   // consumed by renderDetail once the next job's content lands
+  const detailP = selectedId ? renderDetail(selectedId) : Promise.resolve(clearDetail(page));
+  apiCall
+    .then(() => onOk(next))
+    .catch((e) => { onErr(e); softReload(); });   // out of sync with the server — resync for real
+  await detailP;
+  refreshCounts();
+  if (!listCache.length) await softReload();   // ran out — quietly pull the next batch
+}
 async function queueJob(id, btn) {
   if (btn) btn.disabled = true;
-  try {
-    const next = (selectedId === id) ? nextAfter(id) : selectedId;
-    const co = ($(`.card[data-id="${id}"] .co`) || {}).textContent || "";
-    await api(`/api/jobs/${id}/queue`, { method: "POST" });
-    toast(`Queued for Claude${co ? " · " + co : ""}${next ? " — next job up" : ""}`, "ok");
-    selectedId = next;
-    fadeDetail = !!next;   // consumed by renderDetail once the next job's content lands
-    await reload();
-    if (!selectedId) clearDetail(page);
-  } catch (e) { toast("Couldn't queue this job", "err"); if (btn) btn.disabled = false; }
+  const co = ($(`.card[data-id="${id}"] .co`) || {}).textContent || "";
+  await advanceAfter(id, api(`/api/jobs/${id}/queue`, { method: "POST" }),
+    (next) => toast(`Queued for Claude${co ? " · " + co : ""}${next ? " — next job up" : ""}`, "ok"),
+    () => toast("Couldn't queue this job", "err"));
 }
 async function dismissJob(id) {
-  const next = (selectedId === id) ? nextAfter(id) : selectedId;
-  try {
-    await api(`/api/jobs/${id}/dismiss`, { method: "POST" });
-    toast(`Job dismissed${next ? " — next job up" : ""}`, "info");
-    selectedId = next;
-    fadeDetail = !!next;
-    await reload();
-    if (!selectedId) clearDetail(page);
-  } catch (e) { toast("Couldn't dismiss this job", "err"); }
+  await advanceAfter(id, api(`/api/jobs/${id}/dismiss`, { method: "POST" }),
+    (next) => toast(`Job dismissed${next ? " — next job up" : ""}`, "info"),
+    () => toast("Couldn't dismiss this job", "err"));
 }
 async function markApplied(id) {
   try {
@@ -420,8 +436,7 @@ async function renderGrouped(kind) {
     splitShell(title, sub, actions);
     $("#reloadBtn").onclick = reload;
     $("#qaBtn").onclick = () => { selectedId = null; $$(".card").forEach((el) => el.classList.remove("active")); renderQAChat(); };
-    await loadGrouped(QUEUE_GROUPS,
-      ["queue", "Your queue is empty", "Queue a job from <b>Jobs</b> and it'll show up here — or use the Q&amp;A assistant to draft answers to application questions."]);
+    await loadGrouped(QUEUE_GROUPS, QUEUE_EMPTY_ARGS);
   } else {
     appsCompanyFilter = null;
     splitShell(title, sub, actions, `<div class="apps-overview" id="appsOverview"></div>`);
@@ -1323,6 +1338,20 @@ async function reload() {
     else if (page === "insights") await renderInsights();
     else if (page === "about") renderAbout();
     else if (page === "profile") await renderProfile();
+  } catch (err) {
+    showFatal(err);
+  }
+}
+// Lighter-weight refresh for in-place actions (queue/dismiss/status change):
+// updates the list + detail panes without rebuilding the page shell (filters,
+// search box, tab bar), so the view doesn't visibly "reload".
+async function softReload() {
+  try {
+    await refreshCounts();
+    if (page === "jobs") await loadJobs();
+    else if (page === "queue") await loadGrouped(QUEUE_GROUPS, QUEUE_EMPTY_ARGS);
+    else if (page === "applications") await loadApplications();
+    else await reload();
   } catch (err) {
     showFatal(err);
   }
