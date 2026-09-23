@@ -85,6 +85,7 @@ const NAV = [
 ];
 const STATUSES = ["interested", "queued", "materials_ready", "applied", "interview", "offer", "rejected"];
 const QUEUE_GROUPS = [["materials_ready", "Ready for your review", "check"], ["queued", "Queued for Claude", "queue"]];
+const QUEUE_EMPTY_ARGS = ["queue", "Your queue is empty", "Queue a job from <b>Jobs</b> and it'll show up here — or use the Q&amp;A assistant to draft answers to application questions."];
 const APP_GROUPS = [["applied", "Applied", "send"], ["interview", "Interviewing", "mic"], ["offer", "Offers", "trophy"], ["rejected", "Closed", "x"]];
 const STATUS_COLOR = {
   interested: "var(--faint)", queued: "var(--accent)", materials_ready: "var(--ok)",
@@ -212,6 +213,7 @@ function splitShell(titleHtml, subHtml, actionsHtml, filtersHtml) {
 
 /* ── detail (shared) ───────────────────────────────────────────────────── */
 function clearDetail(forPage) {
+  teardownWorkspace();
   if (forPage === "queue") { renderQAChat(); return; }
   const map = {
     jobs: emptyState("jobs", "Select a job", "Pick a posting to see why it matched, what the model thinks, and queue it for a tailored application."),
@@ -247,6 +249,7 @@ function learnedHtml(j) {
 }
 async function renderDetail(id) {
   const host = $("#detail"); if (!host) return;
+  teardownWorkspace();
   const j = await api("/api/jobs/" + id);
   const m = j.materials_struct;
   const applied = j.status === "applied";
@@ -294,7 +297,7 @@ async function renderDetail(id) {
   wire("#starBtn", () => toggleStar(id));
   wire("#dismissBtn", () => dismissJob(id));
   wire("#notesSave", async () => { await api(`/api/jobs/${id}/notes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes: $("#notesArea").value }) }); toast("Notes saved", "ok"); });
-  const ss = $("#statusSel", host); if (ss) ss.onchange = async (e) => { await api(`/api/jobs/${id}/status`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: e.target.value }) }); toast(`Status → ${label(e.target.value)}`, "ok"); reload(); };
+  const ss = $("#statusSel", host); if (ss) ss.onchange = async (e) => { await api(`/api/jobs/${id}/status`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: e.target.value }) }); toast(`Status → ${label(e.target.value)}`, "ok"); softReload(); };
 
   if (fadeDetail) {   // the next job just advanced into view: fade it in + flag the card
     fadeDetail = false;
@@ -314,35 +317,50 @@ function nextAfter(id) {
   const remaining = listCache.filter((x) => x !== id);
   return remaining[idx] || remaining[idx - 1] || null;
 }
+// Drop one card out of the visible list in place: fade it out, remove it from
+// the DOM and from listCache, but leave every other card untouched. The list
+// only ever gets refetched (with its loading skeleton) when it runs dry or on
+// an explicit Refresh — never as a side effect of a single dismiss/queue.
+function removeCard(id) {
+  listCache = listCache.filter((x) => x !== id);
+  const card = $(`.card[data-id="${id}"]`);
+  if (card) {
+    card.addEventListener("animationend", () => card.remove(), { once: true });
+    card.classList.add("removing");
+  }
+}
+// Advance the UI first, let the API call catch up in the background — the
+// dismiss/queue POST no longer blocks the move to the next job.
+async function advanceAfter(id, apiCall, onOk, onErr) {
+  const next = (selectedId === id) ? nextAfter(id) : selectedId;
+  removeCard(id);
+  selectedId = next;
+  fadeDetail = !!next;   // consumed by renderDetail once the next job's content lands
+  const detailP = selectedId ? renderDetail(selectedId) : Promise.resolve(clearDetail(page));
+  apiCall
+    .then(() => onOk(next))
+    .catch((e) => { onErr(e); softReload(); });   // out of sync with the server — resync for real
+  await detailP;
+  refreshCounts();
+  if (!listCache.length) await softReload();   // ran out — quietly pull the next batch
+}
 async function queueJob(id, btn) {
   if (btn) btn.disabled = true;
-  try {
-    const next = (selectedId === id) ? nextAfter(id) : selectedId;
-    const co = ($(`.card[data-id="${id}"] .co`) || {}).textContent || "";
-    await api(`/api/jobs/${id}/queue`, { method: "POST" });
-    toast(`Queued for Claude${co ? " · " + co : ""}${next ? " — next job up" : ""}`, "ok");
-    selectedId = next;
-    fadeDetail = !!next;   // consumed by renderDetail once the next job's content lands
-    await reload();
-    if (!selectedId) clearDetail(page);
-  } catch (e) { toast("Couldn't queue this job", "err"); if (btn) btn.disabled = false; }
+  const co = ($(`.card[data-id="${id}"] .co`) || {}).textContent || "";
+  await advanceAfter(id, api(`/api/jobs/${id}/queue`, { method: "POST" }),
+    (next) => toast(`Queued for Claude${co ? " · " + co : ""}${next ? " — next job up" : ""}`, "ok"),
+    () => toast("Couldn't queue this job", "err"));
 }
 async function dismissJob(id) {
-  const next = (selectedId === id) ? nextAfter(id) : selectedId;
-  try {
-    await api(`/api/jobs/${id}/dismiss`, { method: "POST" });
-    toast(`Job dismissed${next ? " — next job up" : ""}`, "info");
-    selectedId = next;
-    fadeDetail = !!next;
-    await reload();
-    if (!selectedId) clearDetail(page);
-  } catch (e) { toast("Couldn't dismiss this job", "err"); }
+  await advanceAfter(id, api(`/api/jobs/${id}/dismiss`, { method: "POST" }),
+    (next) => toast(`Job dismissed${next ? " — next job up" : ""}`, "info"),
+    () => toast("Couldn't dismiss this job", "err"));
 }
 async function markApplied(id) {
   try {
     await api(`/api/jobs/${id}/status`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "applied" }) });
     toast("Marked as applied", "ok");
-    if (!$("#workspace").hidden) closeWorkspace();
+    if (wsOpenForId) { teardownWorkspace(); }
     selectedId = null;
     await setPage("queue");   // back to the queue to pick the next one
   } catch (e) { toast("Couldn't update status", "err"); }
@@ -414,12 +432,99 @@ async function renderGrouped(kind) {
   const sub = isQueue ? "Jobs handed to Claude, materials to review, and an assistant for application questions." : "Everything you've applied to and where it stands.";
   const actions = isQueue ? `<button class="btn btn-ghost" id="qaBtn">${ico("chat", "btn-ico")}<span>Q&amp;A</span></button><button class="btn btn-ghost" id="reloadBtn">${ico("refresh", "btn-ico")}<span>Refresh</span></button>`
     : `<a class="btn btn-ghost" href="/api/applications.csv" download="applications.csv">${ico("download", "btn-ico")}<span>CSV</span></a><button class="btn btn-ghost" id="reloadBtn">${ico("refresh", "btn-ico")}<span>Refresh</span></button>`;
-  splitShell(title, sub, actions);
-  $("#reloadBtn").onclick = reload;
-  const qb = $("#qaBtn"); if (qb) qb.onclick = () => { selectedId = null; $$(".card").forEach((el) => el.classList.remove("active")); renderQAChat(); };
-  await loadGrouped(isQueue ? QUEUE_GROUPS : APP_GROUPS,
-    isQueue ? ["queue", "Your queue is empty", "Queue a job from <b>Jobs</b> and it'll show up here — or use the Q&amp;A assistant to draft answers to application questions."]
-            : ["applications", "No applications yet", "Mark a job as applied and it lands here."]);
+  if (isQueue) {
+    splitShell(title, sub, actions);
+    $("#reloadBtn").onclick = reload;
+    $("#qaBtn").onclick = () => { selectedId = null; $$(".card").forEach((el) => el.classList.remove("active")); renderQAChat(); };
+    await loadGrouped(QUEUE_GROUPS, QUEUE_EMPTY_ARGS);
+  } else {
+    appsCompanyFilter = null;
+    splitShell(title, sub, actions, `<div class="apps-overview" id="appsOverview"></div>`);
+    $("#reloadBtn").onclick = reload;
+    await loadApplications();
+  }
+}
+
+/* ── Applications overview: ring cards per company + company filter ─────── */
+let appsData = null;
+let appsCompanyFilter = null;
+const APP_STATUS_TEXT = { applied: "applied", interview: "interview", offer: "offer", rejected: "closed" };
+
+function computeApplicationCompanies(data) {
+  const byCo = new Map();
+  for (const [status] of APP_GROUPS) {
+    for (const j of (data.groups[status] || [])) {
+      if (!byCo.has(j.company)) byCo.set(j.company, { company: j.company, items: [], counts: {} });
+      const c = byCo.get(j.company);
+      c.items.push(j);
+      c.counts[status] = (c.counts[status] || 0) + 1;
+    }
+  }
+  return [...byCo.values()].sort((a, b) => (b.items.length - a.items.length) || a.company.localeCompare(b.company));
+}
+function ringGradient(counts, total) {
+  const order = ["applied", "interview", "offer", "rejected"];
+  const nonZero = order.filter((s) => counts[s] > 0);
+  if (!total || !nonZero.length) return "background: var(--surface-3)";
+  if (nonZero.length === 1) return `background: ${STATUS_COLOR[nonZero[0]]}`;
+  const gap = 6; // degrees of surface-colored gap between adjacent segments
+  let angle = 0;
+  const stops = [];
+  nonZero.forEach((s, i) => {
+    const segDeg = (counts[s] / total) * 360;
+    const start = angle, end = angle + segDeg;
+    if (i > 0) stops.push(`var(--surface) ${(start - gap / 2).toFixed(2)}deg ${(start + gap / 2).toFixed(2)}deg`);
+    const gs = i === 0 ? start : start + gap / 2;
+    const ge = i === nonZero.length - 1 ? end : end - gap / 2;
+    stops.push(`${STATUS_COLOR[s]} ${gs.toFixed(2)}deg ${ge.toFixed(2)}deg`);
+    angle = end;
+  });
+  return `background: conic-gradient(${stops.join(", ")})`;
+}
+function renderAppsOverview() {
+  const host = $("#appsOverview"); if (!host || !appsData) return;
+  const companies = computeApplicationCompanies(appsData);
+  const totalAll = companies.reduce((s, c) => s + c.items.length, 0);
+  if (!companies.length) { host.innerHTML = ""; return; }
+  const chipsHtml = [
+    `<button class="apps-chip ${appsCompanyFilter === null ? "active" : ""}" data-co="">All<span class="n">${totalAll}</span></button>`,
+    ...companies.map((c) => `<button class="apps-chip ${appsCompanyFilter === c.company ? "active" : ""}" data-co="${esc(c.company)}">${esc(c.company)}<span class="n">${c.items.length}</span></button>`),
+  ].join("");
+  const cardsHtml = companies.map((c) => {
+    const rows = ["applied", "interview", "offer", "rejected"].filter((s) => c.counts[s] > 0).map((s) =>
+      `<div class="bd-row"><span class="dotc" style="background:${STATUS_COLOR[s]}"></span>${c.counts[s]} ${APP_STATUS_TEXT[s]}</div>`).join("");
+    return `<div class="apps-card ${appsCompanyFilter === c.company ? "active" : ""}" data-co="${esc(c.company)}">
+      <div class="apps-ring" style="${ringGradient(c.counts, c.items.length)}"><span class="apps-ring-num">${c.items.length}</span></div>
+      <div class="apps-card-name">${esc(c.company)}</div>
+      <div class="apps-card-breakdown">${rows}</div>
+    </div>`;
+  }).join("");
+  host.innerHTML = `<div class="apps-chips">${chipsHtml}</div><div class="apps-grid">${cardsHtml}</div>`;
+  $$("[data-co]", host).forEach((el) => (el.onclick = () => {
+    const co = el.dataset.co || null; // "" (the All chip) becomes null
+    appsCompanyFilter = appsCompanyFilter === co ? null : co; // click the active company again to clear back to All
+    renderAppsOverview(); renderAppsList();
+  }));
+}
+function renderAppsList() {
+  const list = $("#list"); if (!list || !appsData) return;
+  const parts = []; listCache = [];
+  for (const [status, heading, iconName] of APP_GROUPS) {
+    const items = (appsData.groups[status] || []).filter((j) => !appsCompanyFilter || j.company === appsCompanyFilter);
+    if (!items.length) continue;
+    parts.push(`<div class="group-label">${ico(iconName)} ${esc(heading)} <span class="n">${items.length}</span></div>`);
+    items.forEach((j) => { listCache.push(j.id); parts.push(cardHtml(j)); });
+  }
+  list.innerHTML = parts.length ? parts.join("")
+    : emptyState("applications", appsCompanyFilter ? `No applications for ${appsCompanyFilter}` : "No applications yet", "Mark a job as applied and it lands here.");
+  wireCards();
+  if (selectedId && listCache.includes(selectedId)) renderDetail(selectedId); else clearDetail("applications");
+}
+async function loadApplications() {
+  $("#list").innerHTML = skeletons(4);
+  appsData = await api("/api/applications");
+  renderAppsOverview();
+  renderAppsList();
 }
 
 /* ── Application Q&A chat (reusable: Queue page + Apply Workspace drawer) ─ */
@@ -932,14 +1037,18 @@ function renderAbout() {
    ═══════════════════════════════════════════════════════════════════════════ */
 let wsUseProxy = true;
 let wsQaOpenFlag = false;
+let wsOpenForId = null;   // id of the job currently docked in the workspace, or null
 async function openWorkspace(id) {
+  const host = $("#detail"); if (!host) return;
   const j = await api("/api/jobs/" + id);
   if (!j.apply_url) { toast("No apply URL for this job", "err"); return; }
+  wsOpenForId = id;
   const m = j.materials_struct;
   const applied = j.status === "applied";
   const frameSrc = wsUseProxy ? "/api/proxy?url=" + encodeURIComponent(j.apply_url) : j.apply_url;
   const leftBlocks = m ? materialsHtml(m) : emptyState("sparkle", "No materials yet", "Queue this job and run /apply first.");
-  $("#workspace").innerHTML = `
+  host.classList.add("ws-host");
+  host.innerHTML = `
     <div class="ws-head">
       <div><div class="ws-title">${esc(j.title)}</div><div class="ws-co">${esc(j.company)} · ${esc(j.city)}</div></div>
       <span class="spacer"></span>
@@ -959,8 +1068,7 @@ async function openWorkspace(id) {
           <button class="btn btn-primary btn-sm" id="wsPop">${ico("popout", "btn-ico")}<span>Pop out</span></button>
           <button class="btn btn-ghost btn-sm" id="wsQaToggle" title="Application Q&amp;A">${ico("chat", "btn-ico")}<span>Q&amp;A</span></button>
         </div>
-        <div class="ws-hint">${ico("info")}<span>Form blank or vanished after a second? Many application sites (Ashby, Workday…) block embedding.</span>
-          <button class="ws-hint-pop" id="wsHintPop">${ico("popout")}Open it beside the app</button></div>
+        <div class="ws-hint">${ico("info")}<span>Form blank or vanished after a second? Many application sites (Ashby, Workday…) block embedding — hit <b>Pop out</b> above to open it in a window beside the app instead.</span></div>
         <div class="ws-stage">
           <iframe class="ws-frame" id="wsFrame" src="${esc(frameSrc)}" sandbox="allow-forms allow-scripts allow-same-origin allow-popups"></iframe>
         </div>
@@ -974,22 +1082,19 @@ async function openWorkspace(id) {
         <div class="ws-qa-body qa" id="wsQaBody">${skeletons(2)}</div>
       </div>
     </div>`;
-  $("#workspace").hidden = false;
-  $$("[data-copy]", $("#workspace")).forEach((b) => (b.onclick = () => {
+  $$("[data-copy]", host).forEach((b) => (b.onclick = () => {
     const body = b.closest(".mat-block").querySelector(".mat-body");
     const text = b.classList.contains("para-copy") ? b.parentElement.textContent.trim() : body.dataset.text;
     copyText(text, b);
   }));
-  const popOut = () => {
+  $("#wsClose").onclick = closeWorkspace;
+  $("#wsReload").onclick = () => { const f = $("#wsFrame"); f.src = f.src; };
+  $("#wsPop").onclick = () => {
     const w = Math.min(1040, Math.floor(screen.availWidth * 0.52));
     const left = Math.max(0, screen.availWidth - w);
     const win = window.open(j.apply_url, "jobapply", `width=${w},height=${Math.max(700, screen.availHeight - 60)},left=${left},top=24`);
     if (!win) { toast("Allow pop-ups for localhost, or opening in a new tab", "info"); window.open(j.apply_url, "_blank", "noopener"); }
   };
-  $("#wsClose").onclick = closeWorkspace;
-  $("#wsReload").onclick = () => { const f = $("#wsFrame"); f.src = f.src; };
-  $("#wsPop").onclick = popOut;
-  $("#wsHintPop").onclick = popOut;
   $("#wsProxy").onclick = () => { wsUseProxy = true; openWorkspace(id); };
   $("#wsDirect").onclick = () => { wsUseProxy = false; openWorkspace(id); };
   $("#wsQaToggle").onclick = () => { wsQaOpenFlag = !wsQaOpenFlag; toggleWsQa(); };
@@ -997,7 +1102,17 @@ async function openWorkspace(id) {
   const wa = $("#wsApply"); if (wa) wa.onclick = () => markApplied(id);  // closes workspace + goes to Queue
   await renderWsQaPanel(j);
 }
-function closeWorkspace() { qaWorkspace.stopPoll(); $("#workspace").hidden = true; $("#workspace").innerHTML = ""; }
+function teardownWorkspace() {
+  qaWorkspace.stopPoll();
+  wsOpenForId = null;
+  const host = $("#detail");
+  if (host) host.classList.remove("ws-host");
+}
+function closeWorkspace() {
+  const id = wsOpenForId;
+  teardownWorkspace();
+  if (id && listCache.includes(id)) renderDetail(id); else clearDetail(page);
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Command palette
@@ -1227,6 +1342,20 @@ async function reload() {
     showFatal(err);
   }
 }
+// Lighter-weight refresh for in-place actions (queue/dismiss/status change):
+// updates the list + detail panes without rebuilding the page shell (filters,
+// search box, tab bar), so the view doesn't visibly "reload".
+async function softReload() {
+  try {
+    await refreshCounts();
+    if (page === "jobs") await loadJobs();
+    else if (page === "queue") await loadGrouped(QUEUE_GROUPS, QUEUE_EMPTY_ARGS);
+    else if (page === "applications") await loadApplications();
+    else await reload();
+  } catch (err) {
+    showFatal(err);
+  }
+}
 function showFatal(err) {
   const v = $("#view");
   if (v) v.innerHTML = `<div class="empty">${ico("info")}<h3>Something failed to load</h3>
@@ -1286,7 +1415,7 @@ document.addEventListener("keydown", (e) => {
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); $("#palette").hidden ? openPalette() : closePalette(); return; }
   if (e.key === "Escape") {
-    if (!$("#workspace").hidden) {
+    if (wsOpenForId) {
       if (wsQaOpenFlag) { wsQaOpenFlag = false; return toggleWsQa(); }
       return closeWorkspace();
     }

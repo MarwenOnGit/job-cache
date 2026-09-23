@@ -210,11 +210,46 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
 .pad { padding: 24px 26px 60px; }
 
 /* ============================================================================
+   Applications overview — ring cards + company filter
+   ========================================================================== */
+.apps-overview { flex: none; padding: 4px 26px 18px; border-bottom: 1px solid var(--line); background: var(--bg); }
+.apps-chips { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 14px; }
+.apps-chip {
+  display: inline-flex; align-items: center; gap: 7px; flex: none; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line); color: var(--muted);
+  padding: 6px 13px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+  transition: border-color .14s, background .14s, color .14s;
+}
+.apps-chip:hover { border-color: var(--line-2); color: var(--text); }
+.apps-chip.active { background: var(--accent-weak); border-color: color-mix(in srgb, var(--accent) 40%, transparent); color: var(--text); }
+.apps-chip .n { color: var(--faint); font-variant-numeric: tabular-nums; }
+.apps-chip.active .n { color: var(--accent); }
+
+.apps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px; }
+.apps-card {
+  display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 12px 14px;
+  cursor: pointer; transition: border-color .14s var(--ease), transform .05s, box-shadow .14s;
+}
+.apps-card:hover { border-color: var(--line-2); box-shadow: var(--shadow); }
+.apps-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.apps-ring { position: relative; width: 84px; height: 84px; border-radius: 50%; flex: none; }
+.apps-ring::after {
+  content: ""; position: absolute; inset: 13px; border-radius: 50%; background: var(--surface); z-index: 0;
+}
+.apps-ring-num { position: absolute; z-index: 1; inset: 13px; display: grid; place-items: center; font-size: 19px; font-weight: 700; color: var(--text); }
+.apps-card-name { font-weight: 650; font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.apps-card-breakdown { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; font-size: 11px; color: var(--muted); }
+.apps-card-breakdown .bd-row { display: flex; align-items: center; gap: 6px; }
+.apps-card-breakdown .dotc { width: 7px; height: 7px; border-radius: 999px; flex: none; }
+
+/* ============================================================================
    Workspace list + detail
    ========================================================================== */
 .split { flex: 1; display: grid; grid-template-columns: 384px 1fr; min-height: 0; }
 .list { overflow-y: auto; border-right: 1px solid var(--line); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
-.detail { overflow-y: auto; padding: 24px 30px 60px; }
+.detail { overflow-y: auto; padding: 24px 30px 60px; container-type: inline-size; }
+.detail.ws-host { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
 
 .group-label { display: flex; align-items: center; gap: 8px; padding: 12px 8px 5px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); }
 .group-label .ico { width: 14px; height: 14px; }
@@ -226,6 +261,9 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
 .card.active { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); box-shadow: inset 2px 0 0 var(--accent); }
 .card.just-selected { animation: cardIn .95s var(--ease-out); }
 @keyframes cardIn { 0% { background: color-mix(in srgb, var(--accent) 22%, var(--surface)); } 100% { background: color-mix(in srgb, var(--accent) 7%, var(--surface)); } }
+/* dismiss/queue: the card itself quietly disappears, no list-wide reload */
+.card.removing { animation: cardOut .16s var(--ease-out) forwards; pointer-events: none; }
+@keyframes cardOut { to { opacity: 0; transform: scale(.96); } }
 /* detail fades in when the next job slides into view after queue/dismiss */
 .detail.fade-swap { animation: fadeSwap .3s var(--ease-out); }
 @keyframes fadeSwap { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -444,9 +482,8 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
 @media (max-width: 1100px) { .ab-grid, .ab-grid2 { grid-template-columns: 1fr; } }
 
 /* ============================================================================
-   Apply workspace (full-screen split)
+   Apply workspace (docked in the detail pane, list stays visible on the left)
    ========================================================================== */
-.ws { position: fixed; inset: 0; z-index: 40; background: var(--bg); display: flex; flex-direction: column; }
 .ws-head { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--line); background: var(--sidebar); flex: none; }
 .ws-head .ws-title { font-weight: 700; font-size: 14px; }
 .ws-head .ws-co { color: var(--muted); font-size: 13px; }
@@ -463,11 +500,17 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
 .ws-hint { display: flex; align-items: center; gap: 9px; padding: 8px 14px; background: var(--sidebar); border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; flex: none; }
 .ws-hint > .ico { width: 15px; height: 15px; color: var(--faint); flex: none; }
 .ws-hint > span { flex: 1; min-width: 0; }
-.ws-hint-pop { display: inline-flex; align-items: center; gap: 6px; flex: none; background: var(--accent-weak); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); color: var(--text); font-weight: 600; font-size: 12px; padding: 5px 11px; border-radius: 7px; cursor: pointer; }
-.ws-hint-pop:hover { background: color-mix(in srgb, var(--accent) 24%, transparent); }
-.ws-hint-pop .ico { width: 13px; height: 13px; color: var(--accent); }
 .ws-stage { position: relative; flex: 1; min-height: 0; }
 .ws-frame { position: absolute; inset: 0; border: 0; width: 100%; height: 100%; background: #fff; }
+
+/* the docked workspace has less width to work with than the old full-screen
+   overlay did, so it gets its own container-query breakpoints (keyed to the
+   detail pane's own width) instead of sharing the page-level ones below */
+@container (max-width: 1000px) { .ws-body { grid-template-columns: 380px 1fr; } }
+@container (max-width: 760px) {
+  .ws-body { grid-template-columns: 1fr; }
+  .ws-left { border-right: 0; border-bottom: 1px solid var(--line); max-height: 38vh; }
+}
 
 /* ============================================================================
    Command palette
@@ -563,13 +606,10 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
 @media (max-width: 1180px) {
   .tiles { grid-template-columns: repeat(2, 1fr); }
   .two-col, .aff-grid { grid-template-columns: 1fr; }
-  .ws-body { grid-template-columns: 380px 1fr; }
 }
 @media (max-width: 1040px) {
   .split { grid-template-columns: 1fr; }
   .list { border-right: 0; border-bottom: 1px solid var(--line); max-height: 44vh; }
-  .ws-body { grid-template-columns: 1fr; }
-  .ws-left { border-right: 0; border-bottom: 1px solid var(--line); max-height: 40vh; }
 }
 @media (max-width: 720px) {
   .app { grid-template-columns: 60px 1fr; --sb: 60px; }
