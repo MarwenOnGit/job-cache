@@ -1,6 +1,6 @@
 import unittest
 
-from normalize import classify_city, classify_role_family, strip_html
+from normalize import classify_city, classify_role_family, extract_apply_link, strip_html
 
 
 class TestCity(unittest.TestCase):
@@ -51,6 +51,34 @@ class TestStripHtml(unittest.TestCase):
         self.assertEqual(strip_html("<p>Hello&amp;<br/>world</p>"), "Hello& world")
         self.assertEqual(strip_html(""), "")
         self.assertEqual(strip_html(None), "")
+
+
+class TestExtractApplyLink(unittest.TestCase):
+    def test_prefers_a_link_that_mentions_apply(self):
+        html_ = (
+            '<p>Great role. <a href="https://company.com/about">About us</a></p>'
+            '<p>Apply here: <a href="https://boards.greenhouse.io/co/jobs/123">link</a></p>'
+        )
+        self.assertEqual(extract_apply_link(html_), "https://boards.greenhouse.io/co/jobs/123")
+
+    def test_falls_back_to_last_external_link(self):
+        html_ = (
+            '<a href="https://arbeitnow.com/jobs/x">this posting</a>'
+            '<a href="https://company.com/careers/123">Careers page</a>'
+        )
+        self.assertEqual(extract_apply_link(html_, exclude_domain="arbeitnow.com"), "https://company.com/careers/123")
+
+    def test_excludes_own_domain_and_social_links(self):
+        html_ = (
+            '<a href="https://arbeitnow.com/jobs/x">this posting</a>'
+            '<a href="https://linkedin.com/company/co">LinkedIn</a>'
+        )
+        self.assertIsNone(extract_apply_link(html_, exclude_domain="arbeitnow.com"))
+
+    def test_no_links_returns_none(self):
+        self.assertIsNone(extract_apply_link("<p>No links here.</p>"))
+        self.assertIsNone(extract_apply_link(""))
+        self.assertIsNone(extract_apply_link(None))
 
 
 if __name__ == "__main__":
