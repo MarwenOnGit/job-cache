@@ -15,7 +15,7 @@ from urllib.parse import urlencode
 
 from http_util import get_json
 from models import Job
-from normalize import extract_apply_link, strip_html
+from normalize import strip_html
 
 BASE = "https://remotive.com/api/remote-jobs"
 
@@ -23,19 +23,14 @@ BASE = "https://remotive.com/api/remote-jobs"
 def parse(company: dict, payload: dict) -> List[Job]:
     jobs: List[Job] = []
     for j in payload.get("jobs", []) or []:
-        raw_desc = j.get("description", "") or ""
-        listing_url = j.get("url", "") or ""
-        # Remotive's "url" is its own listing page — prefer the employer's real
-        # apply link if one is linked from inside the posting.
-        apply_url = extract_apply_link(raw_desc, exclude_domain="remotive.com") or listing_url
         jobs.append(Job(
             company=(j.get("company_name") or "").strip() or "Unknown",
             ats_type="remotive",
             ats_job_id=str(j.get("id")),
             title=j.get("title", "") or "",
             location_raw=j.get("candidate_required_location", "") or "Remote",
-            description=strip_html(raw_desc),
-            apply_url=apply_url,
+            description=strip_html(j.get("description", "")),
+            apply_url=j.get("url", "") or "",
             posted_at=j.get("publication_date"),
             is_startup=False,
         ))

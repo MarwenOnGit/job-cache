@@ -11,7 +11,7 @@ from typing import List
 
 from http_util import get_json
 from models import Job
-from normalize import extract_apply_link, strip_html
+from normalize import strip_html
 
 BASE = "https://remoteok.com/api"
 _HEADERS = {
@@ -26,10 +26,6 @@ def parse(company: dict, payload: list) -> List[Job]:
         if not isinstance(j, dict) or not j.get("id"):
             continue  # first element is the legal notice / any non-job rows
         desc = j.get("description") or ""
-        listing_url = j.get("url") or j.get("apply_url") or ""
-        # RemoteOK rarely supplies a real "apply_url"; its "url" is its own
-        # listing page — prefer a real apply link linked from the posting.
-        apply_url = extract_apply_link(desc, exclude_domain="remoteok.com") or listing_url
         jobs.append(Job(
             company=(j.get("company") or "").strip() or "Unknown",
             ats_type="remoteok",
@@ -37,7 +33,7 @@ def parse(company: dict, payload: list) -> List[Job]:
             title=j.get("position") or j.get("title") or "",
             location_raw=j.get("location") or "Remote",
             description=strip_html(desc),
-            apply_url=apply_url,
+            apply_url=j.get("url") or j.get("apply_url") or "",
             posted_at=j.get("date"),
             is_startup=False,
         ))

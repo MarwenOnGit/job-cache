@@ -190,6 +190,12 @@ def set_notes(conn: sqlite3.Connection, job_id: str, notes: str) -> bool:
     return cur.rowcount > 0
 
 
+def set_apply_url(conn: sqlite3.Connection, job_id: str, apply_url: str) -> bool:
+    cur = conn.execute("UPDATE jobs SET apply_url=? WHERE id=?", (apply_url, job_id))
+    conn.commit()
+    return cur.rowcount > 0
+
+
 def log_event(conn: sqlite3.Connection, job_id: str, action: str, features: Optional[dict] = None) -> None:
     """Append a decision/interaction to the events log (fuel for the learning model)."""
     import json as _json

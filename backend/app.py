@@ -9,7 +9,7 @@ import urllib.request
 import urllib.error
 import uuid
 from typing import Optional
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, PlainTextResponse, HTMLResponse, JSONResponse
@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import db
+import http_util
 import queue_io
 import tracker
 import harvester
@@ -64,6 +65,35 @@ def _refresh_csv(conn) -> None:
         tracker.export_csv(conn)
     except Exception:  # noqa: BLE001 - tracker is best-effort, never break a request
         pass
+
+
+def _resolve_arbeitnow_apply_url(conn, job: dict) -> None:
+    """Arbeitnow doesn't host an application form itself: its own "Apply Now"
+    button is a same-site /apply route that either 302s to the real ATS, or
+    (for jobs using Arbeitnow's own quick-apply form: name, CV, Apply button,
+    nothing else) answers 200 right there. Resolve it once, lazily, the first
+    time this job's detail is opened, and cache the result so it's a one-time
+    cost per job rather than something every harvest has to pay for.
+    """
+    url = job.get("apply_url") or ""
+    if job.get("ats_type") != "arbeitnow" or "arbeitnow.com" not in url:
+        return
+    probe = url.rstrip("/") + "/apply"
+    result = http_util.resolve_redirect(probe)
+    if result is None:
+        return  # network hiccup — leave apply_url as-is, retry on the next open
+    status, location = result
+    if status in (301, 302, 303, 307, 308) and location:
+        dest = urljoin(probe, location)
+        if urlparse(dest).netloc and "arbeitnow.com" not in urlparse(dest).netloc:
+            job["apply_url"] = dest
+            db.set_apply_url(conn, job["id"], dest)
+    elif status == 200:
+        # this IS the final page (Arbeitnow's own quick-apply form), not a
+        # listing to redirect away from.
+        job["apply_url"] = probe
+        db.set_apply_url(conn, job["id"], probe)
+    # else (404/5xx/...): leave apply_url unchanged.
 
 
 def _snapshot(job: dict) -> dict:
@@ -411,6 +441,7 @@ def get_job(job_id: str):
         job = db.get_job(conn, job_id)
         if not job:
             raise HTTPException(404, "job not found")
+        _resolve_arbeitnow_apply_url(conn, job)
         job["materials"] = queue_io.read_materials(job_id)
         job["materials_struct"] = queue_io.read_materials_structured(job_id)
         model = learn.load(conn)
