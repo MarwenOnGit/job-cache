@@ -626,6 +626,11 @@ def proxy(url: str):
 
     Classic server-rendered ATS pages (Greenhouse, Lever) usually work; heavy SPAs
     (Ashby, Workday) may not fully render — the UI offers a 'pop out' fallback.
+
+    On failure (dead link, refuses to answer, times out, isn't HTML) this returns
+    a JSON error with a non-2xx status instead of a 200 HTML page, so the frontend
+    can tell success from failure and show its own blocked-embed card rather than
+    an error snippet rendered inside the iframe.
     """
     if not (url.startswith("http://") or url.startswith("https://")):
         raise HTTPException(400, "bad url")
@@ -638,13 +643,13 @@ def proxy(url: str):
         with urllib.request.urlopen(req, timeout=12) as r:
             ctype = r.headers.get("Content-Type", "text/html")
             raw = r.read()
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as e:  # noqa
-        return HTMLResponse(
-            f"<div style='font:14px system-ui;color:#a3acbe;padding:32px'>"
-            f"Couldn't embed this page ({type(e).__name__}). Use <b>Pop out</b> to open it in a window.</div>",
-            status_code=200)
+    except urllib.error.HTTPError as e:
+        return JSONResponse({"ok": False, "status": e.code, "reason": str(e.reason)}, status_code=502)
+    except (urllib.error.URLError, TimeoutError) as e:  # noqa
+        reason = str(getattr(e, "reason", e)) or type(e).__name__
+        return JSONResponse({"ok": False, "status": None, "reason": reason}, status_code=502)
     if "html" not in ctype:
-        return HTMLResponse("<div style='padding:32px;font:14px system-ui'>Not an HTML page.</div>")
+        return JSONResponse({"ok": False, "status": 200, "reason": "Not an HTML page"}, status_code=502)
     try:
         text = raw.decode("utf-8", errors="replace")
     except Exception:  # noqa

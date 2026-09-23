@@ -61,6 +61,7 @@ const ICONS = {
   trash: V('<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/>'),
   book: V('<path d="M4 5a2 2 0 0 1 2-2h13v15H6a2 2 0 0 0-2 2V5Z"/><path d="M4 20a2 2 0 0 1 2-2h13"/><path d="M9 7h6M9 10h6"/>'),
   terminal: V('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/>'),
+  lock: V('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'),
 };
 const ico = (n, cls = "ico") => `<span class="${cls}">${ICONS[n] || ""}</span>`;
 
@@ -1045,7 +1046,6 @@ async function openWorkspace(id) {
   wsOpenForId = id;
   const m = j.materials_struct;
   const applied = j.status === "applied";
-  const frameSrc = wsUseProxy ? "/api/proxy?url=" + encodeURIComponent(j.apply_url) : j.apply_url;
   const leftBlocks = m ? materialsHtml(m) : emptyState("sparkle", "No materials yet", "Queue this job and run /apply first.");
   host.classList.add("ws-host");
   host.innerHTML = `
@@ -1068,10 +1068,8 @@ async function openWorkspace(id) {
           <button class="btn btn-primary btn-sm" id="wsPop">${ico("popout", "btn-ico")}<span>Pop out</span></button>
           <button class="btn btn-ghost btn-sm" id="wsQaToggle" title="Application Q&amp;A">${ico("chat", "btn-ico")}<span>Q&amp;A</span></button>
         </div>
-        <div class="ws-hint">${ico("info")}<span>Form blank or vanished after a second? Many application sites (Ashby, Workday…) block embedding — hit <b>Pop out</b> above to open it in a window beside the app instead.</span></div>
-        <div class="ws-stage">
-          <iframe class="ws-frame" id="wsFrame" src="${esc(frameSrc)}" sandbox="allow-forms allow-scripts allow-same-origin allow-popups"></iframe>
-        </div>
+        <div class="ws-hint">${ico("info")}<span>Loaded but the form looks blank? Some SPAs (Ashby, Workday…) render client-side and still don't survive embedding — hit <b>Pop out</b> above to open it in a window beside the app instead.</span></div>
+        <div class="ws-stage" id="wsStage"></div>
       </div>
       <div class="ws-qa ${wsQaOpenFlag ? "open" : ""}" id="wsQa">
         <div class="ws-qa-head">
@@ -1088,19 +1086,53 @@ async function openWorkspace(id) {
     copyText(text, b);
   }));
   $("#wsClose").onclick = closeWorkspace;
-  $("#wsReload").onclick = () => { const f = $("#wsFrame"); f.src = f.src; };
-  $("#wsPop").onclick = () => {
-    const w = Math.min(1040, Math.floor(screen.availWidth * 0.52));
-    const left = Math.max(0, screen.availWidth - w);
-    const win = window.open(j.apply_url, "jobapply", `width=${w},height=${Math.max(700, screen.availHeight - 60)},left=${left},top=24`);
-    if (!win) { toast("Allow pop-ups for localhost, or opening in a new tab", "info"); window.open(j.apply_url, "_blank", "noopener"); }
-  };
+  $("#wsReload").onclick = () => loadWsStage(id, j.apply_url);
+  $("#wsPop").onclick = () => openDirectPopout(j.apply_url);
   $("#wsProxy").onclick = () => { wsUseProxy = true; openWorkspace(id); };
   $("#wsDirect").onclick = () => { wsUseProxy = false; openWorkspace(id); };
   $("#wsQaToggle").onclick = () => { wsQaOpenFlag = !wsQaOpenFlag; toggleWsQa(); };
   $("#wsQaClose").onclick = () => { wsQaOpenFlag = false; toggleWsQa(); };
   const wa = $("#wsApply"); if (wa) wa.onclick = () => markApplied(id);  // closes workspace + goes to Queue
+  loadWsStage(id, j.apply_url);
   await renderWsQaPanel(j);
+}
+// Opens the apply page in its own positioned window — used by the toolbar's
+// "Pop out" button and by the blocked-embed fallback card's CTA.
+function openDirectPopout(url) {
+  const w = Math.min(1040, Math.floor(screen.availWidth * 0.52));
+  const left = Math.max(0, screen.availWidth - w);
+  const win = window.open(url, "jobapply", `width=${w},height=${Math.max(700, screen.availHeight - 60)},left=${left},top=24`);
+  if (!win) { toast("Allow pop-ups for localhost, or opening in a new tab", "info"); window.open(url, "_blank", "noopener"); }
+}
+function wsBlockedHtml(url) {
+  return `<div class="empty">${ico("lock")}<h3>Oh, guess this website won't let us in</h3>
+    <p>This one refuses to load inside the workspace (dead link, blocked, or just not answering). The job itself is one click away though.</p>
+    <button class="btn btn-primary" id="wsOpenDirect">${ico("popout", "btn-ico")}<span>Open job page</span></button></div>`;
+}
+// (Re)loads the right-hand stage for the current mode. Embedded mode fetches
+// through our own backend first so a dead link or a hard embedding block
+// (site replies with an error instead of a page) shows the blocked-card
+// fallback instead of an error rendered inside the iframe.
+async function loadWsStage(id, url) {
+  const stage = $("#wsStage");
+  if (!stage) return;
+  if (!wsUseProxy) {
+    stage.innerHTML = `<iframe class="ws-frame" id="wsFrame" src="${esc(url)}" sandbox="allow-forms allow-scripts allow-same-origin allow-popups"></iframe>`;
+    return;
+  }
+  stage.innerHTML = `<div class="empty">${ico("refresh", "ico spin")}<h3>Loading the application page…</h3></div>`;
+  let res;
+  try { res = await fetch("/api/proxy?url=" + encodeURIComponent(url)); } catch (e) { res = null; }
+  if (wsOpenForId !== id) return;   // closed or switched jobs while this was in flight
+  if (!res || !res.ok) {
+    stage.innerHTML = wsBlockedHtml(url);
+    $("#wsOpenDirect", stage).onclick = () => openDirectPopout(url);
+    return;
+  }
+  const html = await res.text();
+  if (wsOpenForId !== id) return;
+  stage.innerHTML = `<iframe class="ws-frame" id="wsFrame" sandbox="allow-forms allow-scripts allow-same-origin allow-popups"></iframe>`;
+  $("#wsFrame").srcdoc = html;
 }
 function teardownWorkspace() {
   qaWorkspace.stopPoll();
