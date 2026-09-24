@@ -95,6 +95,7 @@ kbd {
 .app.sidebar-compact .nav-sec, .app.sidebar-compact .nav-count { display: none; }
 .app.sidebar-compact .nav-item, .app.sidebar-compact .cmd-trigger { justify-content: center; }
 .app.sidebar-compact .foot-row { flex-direction: column; gap: 8px; }
+.app.sidebar-compact .brand { flex-direction: column; align-items: center; gap: 6px; padding: 4px 0; }
 
 .update-banner {
   display: flex; align-items: center; gap: 12px; padding: 9px 18px;
@@ -118,6 +119,7 @@ kbd {
   display: flex; flex-direction: column; padding: 16px 12px; gap: 10px; min-height: 0;
 }
 .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 4px; }
+.brand .sidebar-toggle { margin-left: auto; flex: none; }
 .brand-mark {
   width: 26px; height: 26px; border-radius: 8px; flex: none; position: relative;
   background: linear-gradient(150deg, var(--accent), var(--accent-2));
@@ -236,6 +238,8 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
    ========================================================================== */
 .apps-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .narrowpad { max-width: 900px; margin: 0 auto; width: 100%; }
+.apps-analytics-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+.apps-analytics-head h3 { font-family: var(--font-display); font-size: 15.5px; font-weight: 700; color: var(--title); margin: 0; }
 .co-bubbles { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 13px; }
 .co-bubble {
   display: flex; flex-direction: column; align-items: center; text-align: center; gap: 7px;
@@ -717,6 +721,7 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
   .brand-name, .nav-item .lbl, .btn-txt, .foot-stat, .cmd-trigger span, .cmd-trigger kbd, .nav-sec, .nav-count { display: none; }
   .nav-item { justify-content: center; } .cmd-trigger { justify-content: center; }
   .foot-row { flex-direction: column; gap: 8px; }
+  .brand { flex-direction: column; align-items: center; gap: 6px; padding: 4px 0; }
   .searchbox input { width: 130px; }
   .tiles { grid-template-columns: 1fr 1fr; }
 }

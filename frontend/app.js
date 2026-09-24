@@ -29,6 +29,7 @@ const pct = (v) => Math.round((v || 0) * 100);
 /* ── icons (drawn SVG, single stroke) ──────────────────────────────────── */
 const V = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 const ICONS = {
+  sidebar: V('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>'),
   overview: V('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'),
   jobs: V('<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/>'),
   queue: V('<path d="M3 8l9-5 9 5-9 5-9-5Z"/><path d="M3 12l9 5 9-5"/><path d="M3 16l9 5 9-5"/>'),
@@ -148,13 +149,21 @@ function renderNav() {
   $$(".nav-item").forEach((el) => (el.onclick = () => setPage(el.dataset.page)));
   updateSidebarCompact();
 }
-// Jobs (dense feed, no room for labels) and an open Queue workspace (labels
-// would just get in the way beside the docked apply pane) collapse the
-// sidebar to icon-only, same look the mobile breakpoint already uses.
+// Manual, persisted — not tied to page/workspace state. Auto-toggling the
+// sidebar on every navigation (the old behavior) was jarring; the user
+// decides once and it stays that way until they click it again.
+let sidebarCollapsed = false;
+try { sidebarCollapsed = localStorage.getItem("jc-sidebar-collapsed") === "1"; } catch (e) {}
 function updateSidebarCompact() {
-  const compact = page === "jobs" || (page === "queue" && !!wsOpenForId);
   const app = $(".app");
-  if (app) app.classList.toggle("sidebar-compact", compact);
+  if (app) app.classList.toggle("sidebar-compact", sidebarCollapsed);
+  const btn = $("#sidebarToggleBtn");
+  if (btn) btn.title = sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar";
+}
+function toggleSidebarCollapsed() {
+  sidebarCollapsed = !sidebarCollapsed;
+  try { localStorage.setItem("jc-sidebar-collapsed", sidebarCollapsed ? "1" : "0"); } catch (e) {}
+  updateSidebarCompact();
 }
 function applyTheme(t) {
   document.documentElement.dataset.theme = t;
@@ -409,11 +418,12 @@ const JOBS_KW_CHIPS = ["Python", "Backend", "LLM", "RAG", "SQL", "Docker"];
 // search, saved-only, sort — is instant client-side filtering over this array,
 // same as the rest of this session's "make it feel instant" work.
 let jobsAll = [];
-const JOBS_PAGE_SIZE = 24;
+const JOBS_FIRST_PAGE = 5;   // small first paint — see results immediately
+const JOBS_PAGE_SIZE = 24;   // bigger batches once scrolling (fewer fetch/render cycles)
 let jobsIO = null;
 let jobsView = {
   allLevels: false, q: "", kw: [], cities: new Set(), spon: "", ctype: "", posted: "",
-  sort: "fy", starredOnly: false, expandedId: null, visibleCount: JOBS_PAGE_SIZE,
+  sort: "fy", starredOnly: false, expandedId: null, visibleCount: JOBS_FIRST_PAGE,
 };
 function daysAgo(iso) {
   if (!iso) return null;
@@ -447,9 +457,15 @@ function jobBlurb(description) {
   const sp = cut.lastIndexOf(" ");
   return (sp > 80 ? cut.slice(0, sp) : cut) + "…";
 }
+// Legal-entity suffixes strip cleanly off a company name before slugifying —
+// "Chapters Group AG" -> "chaptersgroup" guesses a real domain far more often
+// than "chaptersgroupag" does. Word-boundary match only: never eat a suffix
+// that's fused into the brand itself.
+const _CO_SUFFIX_RE = /\b(gmbh|ag|ltd|llc|inc|corp|corporation|co|sa|srl|bv|plc|oy|ab|nv|spa|pty|kg|sarl|kk)\.?\s*$/i;
 function companyAvatarHtml(company) {
   const mono = esc((company || "?").trim().slice(0, 2).toUpperCase());
-  const domain = (company || "").toLowerCase().replace(/[^a-z0-9]+/g, "") + ".com";
+  const stripped = (company || "").trim().replace(_CO_SUFFIX_RE, "").trim();
+  const domain = (stripped || company || "").toLowerCase().replace(/[^a-z0-9]+/g, "") + ".com";
   return `<span class="jf-avatar"><span class="jf-avatar-mono">${mono}</span>` +
     `<img class="jf-avatar-img" src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64" alt="" loading="lazy" onerror="this.remove()"></span>`;
 }
@@ -494,7 +510,7 @@ async function loadJobsAll(forceToast) {
   ]);
   jobsAll = data.jobs;
   jobsPrefs = prefs && prefs.preferences;
-  jobsView.visibleCount = JOBS_PAGE_SIZE;
+  jobsView.visibleCount = JOBS_FIRST_PAGE;
   // Arriving here from Overview or the command palette with a specific job in
   // mind (selectedId already set) opens straight to it, expanded and in view.
   const preselect = selectedId && jobsAll.some((j) => j.id === selectedId) ? selectedId : null;
@@ -612,7 +628,7 @@ function renderJobsFeed() {
     const idx = list.findIndex((j) => j.id === jobsView.expandedId);
     if (idx >= 0 && idx >= jobsView.visibleCount) jobsView.visibleCount = idx + 1;
   }
-  const shown = list.slice(0, jobsView.visibleCount || JOBS_PAGE_SIZE);
+  const shown = list.slice(0, jobsView.visibleCount || JOBS_FIRST_PAGE);
   const hasMore = shown.length < list.length;
   $("#jfCards").innerHTML = list.length
     ? shown.map((j) => jobCardHtml(j, scoreKey)).join("") + (hasMore ? `<div class="jf-sentinel" id="jfSentinel"></div>` : "")
@@ -654,7 +670,7 @@ function refreshJobsChrome() {
   wireJobsSide();
   wireJobsTop();
 }
-function refilterJobs() { jobsView.visibleCount = JOBS_PAGE_SIZE; renderJobsFeed(); }
+function refilterJobs() { jobsView.visibleCount = JOBS_FIRST_PAGE; renderJobsFeed(); }
 function wireJobsSide() {
   const host = $("#jfSide");
   $("#jfQ", host).oninput = (e) => { jobsView.q = e.target.value; refilterJobs(); $("#jfQ").focus(); $("#jfQ").selectionStart = $("#jfQ").value.length; };
@@ -742,8 +758,20 @@ async function renderGrouped(kind) {
 
 /* ── Applications: company bubbles (default) + drill-in history, Insights tab ─ */
 let appsData = null;
+let appsInsights = null;
 let appsCompanyFilter = null;
 let appsTab = "overview"; // "overview" | "insights"
+
+// Shared by the Overview tab's at-a-glance strip and the full Insights tab.
+function insightsTilesHtml(ins) {
+  const m = ins.model;
+  return `<div class="grid tiles" style="margin-bottom:16px">
+    <div class="tile"><div class="t-top"><span class="t-label">Decisions</span>${ico("bolt")}</div><div class="t-num">${ins.totals.decided}</div><div class="t-foot">${ins.totals.pursued} pursued · ${ins.totals.rejected} passed</div></div>
+    <div class="tile"><div class="t-top"><span class="t-label">Pursue rate</span>${ico("check")}</div><div class="t-num ok">${ins.totals.pursue_rate != null ? Math.round(ins.totals.pursue_rate * 100) + "%" : "—"}</div><div class="t-foot">of decided jobs</div></div>
+    <div class="tile"><div class="t-top"><span class="t-label">Signals</span>${ico("brain")}</div><div class="t-num accent">${m.n_features}</div><div class="t-foot">feature weights</div></div>
+    <div class="tile"><div class="t-top"><span class="t-label">Starred</span>${ico("star")}</div><div class="t-num">${ins.totals.starred}</div><div class="t-foot">your shortlist</div></div>
+  </div>`;
+}
 
 function computeApplicationCompanies(data) {
   const byCo = new Map();
@@ -779,7 +807,9 @@ async function renderApplications() {
 async function loadApplications() {
   const wrap = $("#appsBodyWrap"); if (!wrap) return;
   wrap.innerHTML = `<div class="scroll pad narrowpad">${skeletons(3)}</div>`;
-  appsData = await api("/api/applications");
+  const [apps, ins] = await Promise.all([api("/api/applications"), api("/api/insights").catch(() => null)]);
+  appsData = apps;
+  appsInsights = ins;
   if (appsCompanyFilter && !computeApplicationCompanies(appsData).some((c) => c.company === appsCompanyFilter)) appsCompanyFilter = null;
   if (appsCompanyFilter) renderAppsDrill(); else renderAppsBubbles();
 }
@@ -789,8 +819,12 @@ async function loadApplications() {
 function renderAppsBubbles() {
   const wrap = $("#appsBodyWrap"); if (!wrap || !appsData) return;
   const companies = computeApplicationCompanies(appsData);
+  const strip = appsInsights ? `
+    <div class="apps-analytics-head"><h3>At a glance</h3><button class="linklike" id="appsSeeInsights">Full insights →</button></div>
+    ${insightsTilesHtml(appsInsights)}` : "";
   if (!companies.length) {
-    wrap.innerHTML = `<div class="scroll pad narrowpad">${emptyState("applications", "No applications yet", "Queue a job for Claude, or mark one as applied, and it lands here.")}</div>`;
+    wrap.innerHTML = `<div class="scroll pad narrowpad">${strip}${emptyState("applications", "No applications yet", "Queue a job for Claude, or mark one as applied, and it lands here.")}</div>`;
+    if ($("#appsSeeInsights", wrap)) $("#appsSeeInsights", wrap).onclick = () => { appsTab = "insights"; renderApplications(); };
     return;
   }
   const bubbles = companies.map((c) => {
@@ -805,8 +839,9 @@ function renderAppsBubbles() {
       ${tags ? `<div class="co-bubble-tags">${tags}</div>` : ""}
     </button>`;
   }).join("");
-  wrap.innerHTML = `<div class="scroll pad narrowpad"><div class="co-bubbles">${bubbles}</div></div>`;
+  wrap.innerHTML = `<div class="scroll pad narrowpad">${strip}<div class="co-bubbles">${bubbles}</div></div>`;
   $$("[data-co]", wrap).forEach((el) => (el.onclick = () => { appsCompanyFilter = el.dataset.co; selectedId = null; renderAppsDrill(); }));
+  const seeIns = $("#appsSeeInsights", wrap); if (seeIns) seeIns.onclick = () => { appsTab = "insights"; renderApplications(); };
 }
 // Drill-in: the familiar list+detail split, scoped to one company — this is
 // where the full history (cover letter, CV variant, status) lives on demand.
@@ -1092,6 +1127,7 @@ async function renderInsightsBody() {
   const wrap = $("#appsBodyWrap"); if (!wrap) return;
   wrap.innerHTML = `<div class="scroll pad narrowpad" id="insBody">${skeletons(1)}</div>`;
   const ins = await api("/api/insights");
+  appsInsights = ins;
   const m = ins.model;
   const allW = [];
   ["role", "city", "company", "kw", "seniority", "sponsorship", "startup"].forEach((ns) => {
@@ -1111,12 +1147,7 @@ async function renderInsightsBody() {
 
   $("#insBody").innerHTML = `
     ${banner}
-    <div class="grid tiles" style="margin-bottom:16px">
-      <div class="tile"><div class="t-top"><span class="t-label">Decisions</span>${ico("bolt")}</div><div class="t-num">${ins.totals.decided}</div><div class="t-foot">${ins.totals.pursued} pursued · ${ins.totals.rejected} passed</div></div>
-      <div class="tile"><div class="t-top"><span class="t-label">Pursue rate</span>${ico("check")}</div><div class="t-num ok">${ins.totals.pursue_rate != null ? Math.round(ins.totals.pursue_rate * 100) + "%" : "—"}</div><div class="t-foot">of decided jobs</div></div>
-      <div class="tile"><div class="t-top"><span class="t-label">Signals</span>${ico("brain")}</div><div class="t-num accent">${m.n_features}</div><div class="t-foot">feature weights</div></div>
-      <div class="tile"><div class="t-top"><span class="t-label">Starred</span>${ico("star")}</div><div class="t-num">${ins.totals.starred}</div><div class="t-foot">your shortlist</div></div>
-    </div>
+    ${insightsTilesHtml(ins)}
     <div class="grid aff-grid" style="margin-bottom:16px">
       ${likePanel("Roles", "role")}
       ${likePanel("Locations", "city")}
@@ -1478,13 +1509,18 @@ async function openPalette() {
   ];
   let jobs = [];
   try { jobs = (await api("/api/jobs?level=all&sort=for_you")).jobs; } catch (e) {}
+  // The user can close the palette (Escape, scrim click) while this fetch is
+  // still in flight — closePalette() wipes #palette's innerHTML, so #palList
+  // is gone by the time we get here. Bail out instead of crashing on null.
+  if ($("#palette").hidden || !$("#palList")) return;
   const render = () => {
+    const list = $("#palList"); if (!list) return;
     const q = input.value.trim().toLowerCase();
     const cmdMatches = commands.filter((c) => !q || c.t.toLowerCase().includes(q));
     const jobMatches = q ? jobs.filter((j) => (j.title + " " + j.company).toLowerCase().includes(q)).slice(0, 7) : [];
     palItems = [...cmdMatches.map((c) => ({ ...c, kind: "cmd" })), ...jobMatches.map((j) => ({ t: j.title, sub: j.company, ico: "jobs", kind: "job", id: j.id }))];
     palSel = 0;
-    $("#palList").innerHTML =
+    list.innerHTML =
       (cmdMatches.length ? `<div class="pal-sec">Commands</div>` + cmdMatches.map((c, i) => palRow(c, i)).join("") : "") +
       (jobMatches.length ? `<div class="pal-sec">Jobs</div>` + jobMatches.map((j, i) => palRow({ t: j.title, sub: j.company, ico: "jobs" }, cmdMatches.length + i)).join("") : "");
     highlightPal();
@@ -1784,6 +1820,7 @@ $("#harvestBtn").onclick = doHarvest;
 $("#cmdTrigger").onclick = openPalette;
 $("#settingsBtn").innerHTML = ico("settings"); $("#settingsBtn").onclick = openSettings;
 $("#themeBtn").onclick = toggleTheme;
+$("#sidebarToggleBtn").innerHTML = ico("sidebar"); $("#sidebarToggleBtn").onclick = toggleSidebarCollapsed;
 
 (async function init() {
   try {

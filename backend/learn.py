@@ -205,7 +205,23 @@ def blended_score(job: dict, model: dict) -> float:
 
 # --- persistence + insights -------------------------------------------------
 
+# Training re-tokenizes every job's title+description and writes model.json to
+# disk — real work, not free. Every page load used to call load() 2-3 times
+# (jobs/stats/insights all fire in parallel) and every one of those retrained
+# from scratch, even though nothing about Sami's decisions had changed since
+# the last request. Cache the trained model in memory and only retrain when a
+# decision actually changes (queue/dismiss/star/status/harvest/import) —
+# invalidate() is called from those spots in app.py.
+_CACHE: Dict[str, object] = {"model": None, "dirty": True}
+
+
+def invalidate() -> None:
+    _CACHE["dirty"] = True
+
+
 def load(conn) -> dict:
+    if not _CACHE["dirty"] and _CACHE["model"] is not None:
+        return _CACHE["model"]
     import db
     model = train(db.all_jobs(conn))
     try:
@@ -213,6 +229,8 @@ def load(conn) -> dict:
             json.dump(model, f, ensure_ascii=False, indent=2)
     except OSError:
         pass
+    _CACHE["model"] = model
+    _CACHE["dirty"] = False
     return model
 
 
