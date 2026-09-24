@@ -756,13 +756,15 @@ async function renderGrouped(kind) {
   await loadGrouped(QUEUE_GROUPS, QUEUE_EMPTY_ARGS);
 }
 
-/* ── Applications: company bubbles (default) + drill-in history, Insights tab ─ */
+/* ── Applications: one merged view — at-a-glance, company bubbles, and the
+   full learned-preference insights, all in the same scroll. No tabs, no
+   separate Insights page. Drilling into a company (click a bubble) swaps
+   this out for the familiar list+detail history view. ─────────────────── */
 let appsData = null;
 let appsInsights = null;
 let appsCompanyFilter = null;
-let appsTab = "overview"; // "overview" | "insights"
 
-// Shared by the Overview tab's at-a-glance strip and the full Insights tab.
+// Shared by the at-a-glance strip and the full insights section below it.
 function insightsTilesHtml(ins) {
   const m = ins.model;
   return `<div class="grid tiles" style="margin-bottom:16px">
@@ -771,6 +773,44 @@ function insightsTilesHtml(ins) {
     <div class="tile"><div class="t-top"><span class="t-label">Signals</span>${ico("brain")}</div><div class="t-num accent">${m.n_features}</div><div class="t-foot">feature weights</div></div>
     <div class="tile"><div class="t-top"><span class="t-label">Starred</span>${ico("star")}</div><div class="t-num">${ins.totals.starred}</div><div class="t-foot">your shortlist</div></div>
   </div>`;
+}
+function insightsBannerHtml(ins) {
+  const m = ins.model;
+  return m.ready
+    ? `<div class="model-banner ready">${ico("check")}<div class="mb-txt"><b>Model active.</b> Learned from ${m.pos} pursued and ${m.neg} rejected jobs across ${m.n_features} signals. The <b>For you</b> sort now blends this with base relevance.</div></div>`
+    : `<div class="model-banner">${ico("brain")}<div class="mb-txt"><b>Still learning.</b> It has ${m.pos} pursued and ${m.neg} rejected so far. <b>Dismiss</b> a few jobs you're not into (and star ones you love) so it can learn what to avoid, not just what you like.</div></div>`;
+}
+// The affinity panels + activity chart — everything from the old standalone
+// Insights page, minus the tiles (already shown once, at the top).
+function insightsPanelsHtml(ins) {
+  const m = ins.model;
+  const allW = [];
+  ["role", "city", "company", "kw", "seniority", "sponsorship", "startup"].forEach((ns) => {
+    (ins.likes[ns] || []).forEach((x) => allW.push(Math.abs(x.weight)));
+    (ins.dislikes[ns] || []).forEach((x) => allW.push(Math.abs(x.weight)));
+  });
+  const maxW = Math.max(0.5, ...allW);
+  const likePanel = (title, ns) => `<div class="panel"><h3>${title}</h3>${affRows(ins.likes[ns] || [], maxW)}</div>`;
+  const maxN = ins.timeline.length ? Math.max(1, ...ins.timeline.map((d) => d.n)) : 1;
+  const spark = ins.timeline.length
+    ? `<div class="spark">${ins.timeline.map((d) => `<div class="spark-col" title="${d.day}: ${d.n}"><span class="spark-n">${d.n || ""}</span><span class="bar" style="height:${(d.n / maxN) * 100}%"></span></div>`).join("")}</div>`
+    : `<div style="color:var(--faint);font-size:12.5px">No activity logged yet.</div>`;
+  return `
+    <div class="apps-section-h">Insights</div>
+    <div class="grid aff-grid" style="margin-bottom:16px">
+      ${likePanel("Roles", "role")}
+      ${likePanel("Locations", "city")}
+      ${likePanel("Keywords", "kw")}
+      ${likePanel("Companies", "company")}
+    </div>
+    ${m.ready ? `<div class="grid aff-grid" style="margin-bottom:16px">
+      <div class="panel"><h3>Passed on</h3>${affRows([...(ins.dislikes.kw || []), ...(ins.dislikes.role || []), ...(ins.dislikes.city || [])].sort((a, b) => a.weight - b.weight).slice(0, 8), maxW)}</div>
+      <div class="panel"><h3>Level &amp; type</h3>${affRows([...(ins.likes.seniority || []), ...(ins.likes.startup || []), ...(ins.likes.sponsorship || [])], maxW)}</div>
+    </div>` : ""}
+    <div class="panel"><h3>All activity <span class="pill muted">30d</span></h3>
+      <p class="ins-activity-note">Every queue, star, dismiss, and status change — not just applications sent.</p>
+      ${spark}
+    </div>`;
 }
 
 function computeApplicationCompanies(data) {
@@ -785,24 +825,30 @@ function computeApplicationCompanies(data) {
   }
   return [...byCo.values()].sort((a, b) => (b.items.length - a.items.length) || a.company.localeCompare(b.company));
 }
+function companyBubbleHtml(c) {
+  const tags = [
+    c.counts.interview ? `<span class="co-tag interview">${c.counts.interview} interviewing</span>` : "",
+    c.counts.offer ? `<span class="co-tag offer">${c.counts.offer} offer</span>` : "",
+  ].filter(Boolean).join("");
+  return `<button class="co-bubble" data-co="${esc(c.company)}">
+    ${companyAvatarHtml(c.company)}
+    <div class="co-bubble-name">${esc(c.company)}</div>
+    <div class="co-bubble-n">${c.items.length} application${c.items.length === 1 ? "" : "s"}</div>
+    ${tags ? `<div class="co-bubble-tags">${tags}</div>` : ""}
+  </button>`;
+}
 async function renderApplications() {
   $("#view").innerHTML = `
     <div class="pagehead">
       <div class="pagehead-l"><h1 class="pagetitle">Applications</h1><p class="pagesub">Where things stand, by company — and what the model has learned.</p></div>
       <div class="pagehead-r">
-        <div class="seg" id="appsTabSeg">
-          <button data-tab="overview" class="${appsTab === "overview" ? "on" : ""}">Overview</button>
-          <button data-tab="insights" class="${appsTab === "insights" ? "on" : ""}">Insights</button>
-        </div>
         <a class="btn btn-ghost" href="/api/applications.csv" download="applications.csv">${ico("download", "btn-ico")}<span>CSV</span></a>
         <button class="btn btn-ghost" id="reloadBtn">${ico("refresh", "btn-ico")}<span>Refresh</span></button>
       </div>
     </div>
     <div class="apps-wrap" id="appsBodyWrap"></div>`;
   $("#reloadBtn").onclick = reload;
-  $$("#appsTabSeg [data-tab]").forEach((b) => (b.onclick = () => { appsTab = b.dataset.tab; renderApplications(); }));
-  if (appsTab === "insights") await renderInsightsBody();
-  else await loadApplications();
+  await loadApplications();
 }
 async function loadApplications() {
   const wrap = $("#appsBodyWrap"); if (!wrap) return;
@@ -811,37 +857,25 @@ async function loadApplications() {
   appsData = apps;
   appsInsights = ins;
   if (appsCompanyFilter && !computeApplicationCompanies(appsData).some((c) => c.company === appsCompanyFilter)) appsCompanyFilter = null;
-  if (appsCompanyFilter) renderAppsDrill(); else renderAppsBubbles();
+  if (appsCompanyFilter) renderAppsDrill(); else renderAppsOverview();
 }
-// Default landing view: a bubble per company (logo, count, status highlights) —
-// full per-job details only show up once you drill into one, per Sami's ask
-// not to see every application's guts unless he's actually after the history.
-function renderAppsBubbles() {
+// Default landing view: at-a-glance tiles, then a bubble per company (logo,
+// count, status highlights), then the full insights — one continuous scroll,
+// no tabs. Full per-job details only show up once you drill into a company.
+function renderAppsOverview() {
   const wrap = $("#appsBodyWrap"); if (!wrap || !appsData) return;
   const companies = computeApplicationCompanies(appsData);
-  const strip = appsInsights ? `
-    <div class="apps-analytics-head"><h3>At a glance</h3><button class="linklike" id="appsSeeInsights">Full insights →</button></div>
-    ${insightsTilesHtml(appsInsights)}` : "";
-  if (!companies.length) {
-    wrap.innerHTML = `<div class="scroll pad narrowpad">${strip}${emptyState("applications", "No applications yet", "Queue a job for Claude, or mark one as applied, and it lands here.")}</div>`;
-    if ($("#appsSeeInsights", wrap)) $("#appsSeeInsights", wrap).onclick = () => { appsTab = "insights"; renderApplications(); };
-    return;
-  }
-  const bubbles = companies.map((c) => {
-    const tags = [
-      c.counts.interview ? `<span class="co-tag interview">${c.counts.interview} interviewing</span>` : "",
-      c.counts.offer ? `<span class="co-tag offer">${c.counts.offer} offer</span>` : "",
-    ].filter(Boolean).join("");
-    return `<button class="co-bubble" data-co="${esc(c.company)}">
-      ${companyAvatarHtml(c.company)}
-      <div class="co-bubble-name">${esc(c.company)}</div>
-      <div class="co-bubble-n">${c.items.length} application${c.items.length === 1 ? "" : "s"}</div>
-      ${tags ? `<div class="co-bubble-tags">${tags}</div>` : ""}
-    </button>`;
-  }).join("");
-  wrap.innerHTML = `<div class="scroll pad narrowpad">${strip}<div class="co-bubbles">${bubbles}</div></div>`;
+  const bubblesHtml = companies.length
+    ? `<div class="co-bubbles">${companies.map(companyBubbleHtml).join("")}</div>`
+    : emptyState("applications", "No applications yet", "Queue a job for Claude, or mark one as applied, and it lands here.");
+  wrap.innerHTML = `<div class="scroll pad narrowpad">
+    ${appsInsights ? insightsBannerHtml(appsInsights) : ""}
+    ${appsInsights ? `<div class="apps-section-h">At a glance</div>${insightsTilesHtml(appsInsights)}` : ""}
+    <div class="apps-section-h">Companies</div>
+    ${bubblesHtml}
+    ${appsInsights ? insightsPanelsHtml(appsInsights) : ""}
+  </div>`;
   $$("[data-co]", wrap).forEach((el) => (el.onclick = () => { appsCompanyFilter = el.dataset.co; selectedId = null; renderAppsDrill(); }));
-  const seeIns = $("#appsSeeInsights", wrap); if (seeIns) seeIns.onclick = () => { appsTab = "insights"; renderApplications(); };
 }
 // Drill-in: the familiar list+detail split, scoped to one company — this is
 // where the full history (cover letter, CV variant, status) lives on demand.
@@ -850,7 +884,7 @@ function renderAppsDrill() {
   wrap.innerHTML = `
     <div class="apps-drillbar"><button class="linklike" id="appsBack">← All companies</button><span class="apps-drillco">${esc(appsCompanyFilter)}</span></div>
     <div class="split"><section id="list" class="list"></section><section id="detail" class="detail"></section></div>`;
-  $("#appsBack").onclick = () => { appsCompanyFilter = null; selectedId = null; renderAppsBubbles(); };
+  $("#appsBack").onclick = () => { appsCompanyFilter = null; selectedId = null; renderAppsOverview(); };
   renderAppsList();
 }
 function renderAppsList() {
@@ -1058,11 +1092,58 @@ function greeting() {
   const t = h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
   return config.owner_name ? `${t}, ${config.owner_name.split(" ")[0]}` : t;
 }
+
+/* ── "This week" applications strip (Overview header, beside Harvest) ──── */
+const WS_DOW = ["M", "T", "W", "T", "F", "S", "S"];
+function wsLocalKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function wsWeekDays() {
+  const now = new Date();
+  const dow = (now.getDay() + 6) % 7; // Monday = 0 .. Sunday = 6
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow);
+  return Array.from({ length: 7 }, (_, i) => new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i));
+}
+async function loadWeekStrip() {
+  const host = $("#weekStrip"); if (!host) return;
+  let applied = [];
+  try { applied = (await api("/api/applications/week")).applied || []; } catch (e) {}
+  const host2 = $("#weekStrip"); if (!host2) return;   // page may have moved on while this awaited
+  const days = wsWeekDays();
+  const todayKey = wsLocalKey(new Date());
+  const counts = new Map(days.map((d) => [wsLocalKey(d), 0]));
+  applied.forEach((ts) => {
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return;
+    const key = wsLocalKey(d);
+    if (counts.has(key)) counts.set(key, counts.get(key) + 1);
+  });
+  const cols = days.map((d, i) => {
+    const key = wsLocalKey(d);
+    const n = counts.get(key) || 0;
+    const state = key === todayKey ? "today" : key < todayKey ? "past" : "future";
+    const shown = state === "future" ? 0 : Math.min(6, n);
+    const ticks = Array.from({ length: shown }, () => `<span class="ws-tick"></span>`).join("");
+    const dow = d.toLocaleDateString(undefined, { weekday: "short" });
+    const tip = n ? `${dow} ${d.getDate()} · ${n} application${n === 1 ? "" : "s"}` : "No applications";
+    return `<div class="ws-col ws-${state}" title="${esc(tip)}">
+      <div class="ws-ticks">${ticks}</div>
+      <div class="ws-lbl">${WS_DOW[i]}</div>
+    </div>`;
+  }).join("");
+  host2.innerHTML = `<div class="ws-label">This<br>week</div><div class="ws-cols">${cols}</div>`;
+}
 async function renderOverview() {
   $("#view").innerHTML = `<div class="pagehead"><div class="pagehead-l"><h1 class="pagetitle">Overview</h1><p class="pagesub">Your job hunt at a glance.</p></div>
-    <div class="pagehead-r"><button class="btn btn-ghost" id="reloadBtn">${ico("refresh", "btn-ico")}<span>Refresh</span></button></div></div>
+    <div class="pagehead-r">
+      <div class="week-strip" id="weekStrip" title="Applications sent this week"></div>
+      <button class="btn btn-ghost btn-sm harvest-trigger" id="ovHarvestBtn" data-label="Harvest">${ico("sparkle", "btn-ico")}<span class="btn-txt">Harvest</span></button>
+      <button class="btn btn-ghost" id="reloadBtn">${ico("refresh", "btn-ico")}<span>Refresh</span></button>
+    </div></div>
     <div class="scroll pad" id="ovBody">${skeletons(1)}</div>`;
   $("#reloadBtn").onclick = reload;
+  $("#ovHarvestBtn").onclick = doHarvest;
+  loadWeekStrip();
   const [stats, ins, jobsData] = await Promise.all([
     api("/api/stats"), api("/api/insights"), api("/api/jobs?sort=for_you&level=suitable"),
   ]);
@@ -1103,14 +1184,14 @@ async function renderOverview() {
           <span class="fn-n">${bs[k] || 0}</span></div>`).join("")}</div>
       </div>
     </div>`;
-  $$("[data-goto]").forEach((el) => (el.onclick = () => {
-    if (el.dataset.goto === "insights") { appsTab = "insights"; setPage("applications"); } else setPage(el.dataset.goto);
-  }));
+  // "insights" was a distinct page/tab once; it now just lives further down
+  // the Applications view, so the goto target collapses to that page.
+  $$("[data-goto]").forEach((el) => (el.onclick = () => setPage(el.dataset.goto === "insights" ? "applications" : el.dataset.goto)));
   $$(".pick[data-id]").forEach((el) => (el.onclick = () => { selectedId = el.dataset.id; setPage("jobs"); }));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Page: Insights (what the model learned)
+   Insights — affinity rows shared by the panels rendered inside Applications
    ═══════════════════════════════════════════════════════════════════════════ */
 function affRows(list, maxW) {
   if (!list.length) return `<div style="color:var(--faint);font-size:12.5px;padding:4px 0">Not enough signal yet.</div>`;
@@ -1122,43 +1203,6 @@ function affRows(list, maxW) {
       <span class="aff-track"><span class="${side}" style="${style}"></span></span>
       <span class="aff-sup">${x.pos}✓ ${x.neg}✕</span></div>`;
   }).join("")}</div>`;
-}
-async function renderInsightsBody() {
-  const wrap = $("#appsBodyWrap"); if (!wrap) return;
-  wrap.innerHTML = `<div class="scroll pad narrowpad" id="insBody">${skeletons(1)}</div>`;
-  const ins = await api("/api/insights");
-  appsInsights = ins;
-  const m = ins.model;
-  const allW = [];
-  ["role", "city", "company", "kw", "seniority", "sponsorship", "startup"].forEach((ns) => {
-    (ins.likes[ns] || []).forEach((x) => allW.push(Math.abs(x.weight)));
-    (ins.dislikes[ns] || []).forEach((x) => allW.push(Math.abs(x.weight)));
-  });
-  const maxW = Math.max(0.5, ...allW);
-  const banner = m.ready
-    ? `<div class="model-banner ready">${ico("check")}<div class="mb-txt"><b>Model active.</b> Learned from ${m.pos} pursued and ${m.neg} rejected jobs across ${m.n_features} signals. The <b>For you</b> sort now blends this with base relevance.</div></div>`
-    : `<div class="model-banner">${ico("brain")}<div class="mb-txt"><b>Still learning.</b> It has ${m.pos} pursued and ${m.neg} rejected so far. <b>Dismiss</b> a few jobs you're not into (and star ones you love) so it can learn what to avoid, not just what you like.</div></div>`;
-
-  const likePanel = (title, ns) => `<div class="panel"><h3>${title}</h3>${affRows(ins.likes[ns] || [], maxW)}</div>`;
-  const maxN = ins.timeline.length ? Math.max(1, ...ins.timeline.map((d) => d.n)) : 1;
-  const spark = ins.timeline.length
-    ? `<div class="spark">${ins.timeline.map((d) => `<div class="spark-col" title="${d.day}: ${d.n}"><span class="spark-n">${d.n || ""}</span><span class="bar" style="height:${(d.n / maxN) * 100}%"></span></div>`).join("")}</div>`
-    : `<div style="color:var(--faint);font-size:12.5px">No activity logged yet.</div>`;
-
-  $("#insBody").innerHTML = `
-    ${banner}
-    ${insightsTilesHtml(ins)}
-    <div class="grid aff-grid" style="margin-bottom:16px">
-      ${likePanel("Roles", "role")}
-      ${likePanel("Locations", "city")}
-      ${likePanel("Keywords", "kw")}
-      ${likePanel("Companies", "company")}
-    </div>
-    ${m.ready ? `<div class="grid aff-grid" style="margin-bottom:16px">
-      <div class="panel"><h3>Passed on</h3>${affRows([...(ins.dislikes.kw || []), ...(ins.dislikes.role || []), ...(ins.dislikes.city || [])].sort((a, b) => a.weight - b.weight).slice(0, 8), maxW)}</div>
-      <div class="panel"><h3>Level &amp; type</h3>${affRows([...(ins.likes.seniority || []), ...(ins.likes.startup || []), ...(ins.likes.sponsorship || [])], maxW)}</div>
-    </div>` : ""}
-    <div class="panel"><h3>Daily activity</h3>${spark}</div>`;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1309,7 +1353,7 @@ function renderAbout() {
             ${step(5, "Generate", "In a terminal in this repo, run <code>claude</code>, then <code>/apply</code>. Claude writes a tailored cover letter and per-role notes, grouped by company, in your voice.")}
             ${step(6, "Review &amp; apply", "Back in the app, open a queued job. Read the materials, hit <b>Apply workspace</b> for side-by-side copy-paste (or <b>Pop out</b> the form), submit, then click <b>Mark as applied</b>.")}
             ${step(7, "Answer questions", "For custom form questions (\"describe a project…\"), use the <b>Q&amp;A</b> on the Queue page. Type <b>@</b> to reference a job, ask, run <code>/answer</code>, and copy the draft.")}
-            ${step(8, "Track &amp; learn", "<b>Applications</b> tracks each one's status, grouped by company. Its <b>Insights</b> tab shows what the model has learned and sharpens the <b>For you</b> ranking.")}
+            ${step(8, "Track &amp; learn", "<b>Applications</b> tracks each one's status, grouped by company, with what the model has learned right below — it sharpens the <b>For you</b> ranking as you go.")}
           </ol>
         </div>
 
@@ -1341,7 +1385,7 @@ function renderAbout() {
             ${pageRow("overview", "Overview", "your hunt at a glance, plus top picks.")}
             ${pageRow("jobs", "Jobs", "browse matches (hides applied &amp; dismissed).")}
             ${pageRow("queue", "Queue", "pursue jobs, review materials, and the Q&amp;A assistant.")}
-            ${pageRow("applications", "Applications", "your tracker by company, an Insights tab, and CSV export.")}
+            ${pageRow("applications", "Applications", "your tracker by company, with what the model has learned built in, and CSV export.")}
             ${pageRow("profile", "Profile", "your search preferences (countries, roles, titles, keywords), CV, and voice.")}
           </div>
         </div>
@@ -1349,7 +1393,7 @@ function renderAbout() {
           <h3>${ico("bolt")} Keyboard shortcuts</h3>
           <div class="kbd-grid">
             ${key("<kbd>⌘</kbd><kbd>K</kbd>", "Command palette (search + jump + actions)")}
-            ${key("<kbd>g</kbd> then <kbd>o</kbd>/<kbd>j</kbd>/<kbd>q</kbd>/<kbd>a</kbd>/<kbd>i</kbd>/<kbd>p</kbd>/<kbd>h</kbd>", "Go to a page")}
+            ${key("<kbd>g</kbd> then <kbd>o</kbd>/<kbd>j</kbd>/<kbd>q</kbd>/<kbd>a</kbd>/<kbd>p</kbd>/<kbd>h</kbd>", "Go to a page")}
             ${key("<kbd>j</kbd> / <kbd>k</kbd>", "Move up / down the list")}
             ${key("<kbd>s</kbd>", "Star the selected job")}
             ${key("<kbd>e</kbd>", "Queue the selected job")}
@@ -1498,8 +1542,7 @@ async function openPalette() {
     { t: "Go to Overview", ico: "overview", run: () => setPage("overview"), sub: "Page" },
     { t: "Go to Jobs", ico: "jobs", run: () => setPage("jobs"), sub: "Page" },
     { t: "Go to Queue", ico: "queue", run: () => setPage("queue"), sub: "Page" },
-    { t: "Go to Applications", ico: "applications", run: () => { appsTab = "overview"; setPage("applications"); }, sub: "Page" },
-    { t: "Go to Insights", ico: "insights", run: () => { appsTab = "insights"; setPage("applications"); }, sub: "Applications tab" },
+    { t: "Go to Applications", ico: "applications", run: () => setPage("applications"), sub: "Page" },
     { t: "Go to Profile", ico: "profile", run: () => setPage("profile"), sub: "Page" },
     { t: "Go to How to use", ico: "book", run: () => setPage("about"), sub: "Page" },
     { t: "Harvest jobs", ico: "sparkle", run: () => { closePalette(); doHarvest(); }, sub: "Action" },
@@ -1691,12 +1734,21 @@ function openOnboarding(st) {
 /* ═══════════════════════════════════════════════════════════════════════════
    Harvest + routing + counts
    ═══════════════════════════════════════════════════════════════════════════ */
+// Two harvest triggers exist (sidebar + Overview header) — both share the
+// .harvest-trigger class so either one reflects the busy state correctly,
+// and each keeps its own idle label via data-label.
+function _setHarvestBusy(busy) {
+  $$(".harvest-trigger").forEach((b) => {
+    b.disabled = busy;
+    const txt = b.querySelector(".btn-txt");
+    if (txt) txt.textContent = busy ? "Harvesting…" : (b.dataset.label || "Harvest jobs");
+  });
+}
 async function doHarvest() {
-  const b = $("#harvestBtn"); const txt = b.querySelector(".btn-txt");
-  b.disabled = true; if (txt) txt.textContent = "Harvesting…";
+  _setHarvestBusy(true);
   try { const s = await api("/api/harvest", { method: "POST" }); toast(`Harvested ${s.kept} jobs${s.errors && s.errors.length ? ` · ${s.errors.length} skipped` : ""}`, "ok"); await reload(); }
   catch (e) { toast("Harvest failed", "err"); }
-  finally { b.disabled = false; if (txt) txt.textContent = "Harvest jobs"; }
+  finally { _setHarvestBusy(false); }
 }
 async function setPage(p) {
   page = p;
@@ -1724,7 +1776,7 @@ async function softReload() {
     await refreshCounts();
     if (page === "jobs") await loadJobs();
     else if (page === "queue") await loadGrouped(QUEUE_GROUPS, QUEUE_EMPTY_ARGS);
-    else if (page === "applications") await (appsTab === "insights" ? renderInsightsBody() : loadApplications());
+    else if (page === "applications") await loadApplications();
     else await reload();
   } catch (err) {
     showFatal(err);
@@ -1800,7 +1852,6 @@ document.addEventListener("keydown", (e) => {
   if (gPending) {
     gPending = false;
     const map = { o: "overview", j: "jobs", q: "queue", a: "applications", p: "profile", h: "about" };
-    if (e.key === "i") { appsTab = "insights"; setPage("applications"); return; }
     if (map[e.key]) { setPage(map[e.key]); return; }
   }
   if (e.key === "g") { gPending = true; setTimeout(() => (gPending = false), 800); return; }
@@ -1810,7 +1861,7 @@ document.addEventListener("keydown", (e) => {
   else if (e.key === "s" && selectedId) { if (page === "jobs") toggleStarCard(selectedId); else toggleStar(selectedId); }
   else if (e.key === "e" && selectedId) { if (page === "jobs") queueJobCard(selectedId); else queueJob(selectedId); }
   else if (e.key === "x" && selectedId) { if (page === "jobs") dismissJobCard(selectedId); else dismissJob(selectedId); }
-  else if (e.key === "?") toast("⌘K palette · g+o/j/q/a/i/p/h pages · j/k move · s star · e queue · x dismiss", "info");
+  else if (e.key === "?") toast("⌘K palette · g+o/j/q/a/p/h pages · j/k move · s star · e queue · x dismiss", "info");
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════

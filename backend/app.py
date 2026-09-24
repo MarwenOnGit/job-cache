@@ -317,6 +317,18 @@ def applications():
         conn.close()
 
 
+@app.get("/api/applications/week")
+def applications_week():
+    """Timestamps of when jobs were first marked applied — the dashboard's
+    'This week' strip buckets these into local calendar days client-side."""
+    conn = _conn()
+    try:
+        events = db.applied_events(conn)
+        return {"applied": [e["ts"] for e in events if e["ts"]]}
+    finally:
+        conn.close()
+
+
 @app.get("/api/applications.csv")
 def applications_csv():
     conn = _conn()
