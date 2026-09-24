@@ -219,11 +219,14 @@ def invalidate() -> None:
     _CACHE["dirty"] = True
 
 
+_TRAINABLE_STATUS = POSITIVE_STATUS | NEGATIVE_STATUS
+
+
 def load(conn) -> dict:
     if not _CACHE["dirty"] and _CACHE["model"] is not None:
         return _CACHE["model"]
     import db
-    model = train(db.all_jobs(conn))
+    model = train(db.training_jobs(conn, _TRAINABLE_STATUS))
     try:
         with open(MODEL_PATH, "w", encoding="utf-8") as f:
             json.dump(model, f, ensure_ascii=False, indent=2)

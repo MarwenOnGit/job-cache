@@ -47,19 +47,27 @@ async def _no_store(request, call_next):
 
 
 def _conn():
+    return db.connect()
+
+
+@app.on_event("startup")
+def _on_startup() -> None:
+    """Schema creation/migration runs once here, not on every request's _conn()."""
     conn = db.connect()
-    db.init_db(conn)
-    return conn
+    try:
+        db.init_db(conn)
+    finally:
+        conn.close()
 
 
 def _reconcile(conn) -> None:
-    """Promote queued jobs to materials_ready once Claude has written their per-job note."""
+    """Promote queued jobs to materials_ready once Claude has written their
+    per-job note. One bulk UPDATE instead of a SELECT + per-job UPDATE loop —
+    this runs on most requests, so it needs to be cheap even when there's
+    nothing to do."""
     ready = queue_io.done_ids()
-    for job_id in ready:
-        job = db.get_job(conn, job_id)
-        if job and job["status"] in ("queued", "interested"):
-            db.set_status(conn, job_id, "materials_ready")
-            learn.invalidate()
+    if ready and db.promote_ready(conn, list(ready)):
+        learn.invalidate()
 
 
 def _refresh_csv(conn) -> None:
@@ -146,16 +154,11 @@ def list_jobs(city: Optional[str] = None, role_family: Optional[str] = None,
         _reconcile(conn)
         jobs = db.get_jobs(conn, city=city, role_family=role_family,
                            sponsorship=sponsorship, startup=startup, status=status,
-                           level=level, sort="score")
+                           level=level, sort="score", starred=(starred or None), q=q)
         model = learn.load(conn)
         for j in jobs:
             j["learned_score"] = learn.score(j, model)
             j["for_you"] = learn.blended_score(j, model)
-        if starred:
-            jobs = [j for j in jobs if j.get("starred")]
-        if q:
-            ql = q.lower()
-            jobs = [j for j in jobs if ql in (j.get("title", "") + " " + j.get("company", "")).lower()]
         if sort == "for_you":
             jobs.sort(key=lambda j: j["for_you"], reverse=True)
         elif sort == "date":
@@ -169,15 +172,17 @@ def list_jobs(city: Optional[str] = None, role_family: Optional[str] = None,
 
 @app.get("/api/stats")
 def stats():
+    # No _reconcile() here: it's a write, and stats/insights are read-heavy
+    # (polled a lot) — reconciling belongs on the endpoints that actually
+    # need fresh materials_ready status (/api/jobs, /api/applications).
     conn = _conn()
     try:
-        _reconcile(conn)
         by_status = {r["status"]: r["c"] for r in
                      conn.execute("SELECT status, count(*) c FROM jobs GROUP BY status")}
-        browsable = db.get_jobs(conn, level="suitable")
+        browsable = db.count_jobs(conn, level="suitable")
         starred = conn.execute("SELECT count(*) c FROM jobs WHERE starred=1").fetchone()["c"]
         model = learn.load(conn)
-        return {"browsable": len(browsable), "by_status": by_status,
+        return {"browsable": browsable, "by_status": by_status,
                 "starred": starred, "model_ready": model.get("ready")}
     finally:
         conn.close()
@@ -187,7 +192,6 @@ def stats():
 def insights():
     conn = _conn()
     try:
-        _reconcile(conn)
         return learn.insights(conn)
     finally:
         conn.close()
@@ -287,6 +291,7 @@ def create_question(body: QuestionBody):
         row = db.add_question(conn, qid, q, primary, company)
         queue_io.write_question_pending(qid, q, jobs)
         db.log_event(conn, primary or "", "ask_question", {"company": company, "refs": len(jobs)})
+        conn.commit()
         return row
     finally:
         conn.close()
@@ -488,6 +493,7 @@ def queue_job(job_id: str):
         path = queue_io.write_pending(job)
         db.set_status(conn, job_id, "queued")
         db.log_event(conn, job_id, "queue", _snapshot(job))
+        conn.commit()
         _refresh_csv(conn)
         learn.invalidate()
         return {"ok": True, "queued": os.path.basename(path)}
@@ -504,6 +510,7 @@ def dismiss_job(job_id: str):
             raise HTTPException(404, "job not found")
         db.set_status(conn, job_id, "dismissed")
         db.log_event(conn, job_id, "dismiss", _snapshot(job))
+        conn.commit()
         learn.invalidate()
         return {"ok": True, "status": "dismissed"}
     finally:
@@ -519,6 +526,7 @@ def star_job(job_id: str, body: StarBody):
             raise HTTPException(404, "job not found")
         db.set_starred(conn, job_id, body.starred)
         db.log_event(conn, job_id, "star" if body.starred else "unstar", _snapshot(job))
+        conn.commit()
         learn.invalidate()
         return {"ok": True, "starred": body.starred}
     finally:
@@ -555,6 +563,7 @@ def set_status(job_id: str, body: StatusBody):
             raise HTTPException(404, "job not found")
         db.set_status(conn, job_id, body.status)
         db.log_event(conn, job_id, f"status:{body.status}", _snapshot(job))
+        conn.commit()
         _refresh_csv(conn)
         learn.invalidate()
         return {"ok": True, "status": body.status}
