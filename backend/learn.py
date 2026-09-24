@@ -17,7 +17,7 @@ import math
 import os
 import re
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -255,7 +255,10 @@ def insights(conn) -> dict:
     likes = {ns: _top(model, ns, +1) for ns in NAMESPACES}
     dislikes = {ns: _top(model, ns, -1) for ns in NAMESPACES}
 
-    # activity timeline from the events log (last 30 days, by day)
+    # Activity timeline: every one of the last 30 calendar days, zero-filled —
+    # not just the days that happen to have an event. Sorting/slicing the
+    # sparse by_day keys silently dropped quiet days entirely, which made a
+    # handful of busy days look like the whole chart (e.g. 5 bars instead of 30).
     events = db.recent_events(conn, limit=2000)
     by_day = Counter()
     action_counts = Counter()
@@ -264,7 +267,9 @@ def insights(conn) -> dict:
         if day:
             by_day[day] += 1
         action_counts[e.get("action")] += 1
-    timeline = [{"day": d, "n": by_day[d]} for d in sorted(by_day)][-30:]
+    today = datetime.now(timezone.utc).date()
+    last_30_days = [(today - timedelta(days=i)).isoformat() for i in range(29, -1, -1)]
+    timeline = [{"day": d, "n": by_day.get(d, 0)} for d in last_30_days]
 
     pursued = sum(funnel[s] for s in POSITIVE_STATUS)
     rejected = sum(funnel[s] for s in NEGATIVE_STATUS)
