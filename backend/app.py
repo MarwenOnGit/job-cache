@@ -3,13 +3,14 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import time
 import urllib.request
 import urllib.error
 import uuid
 from typing import Optional
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, PlainTextResponse, HTMLResponse, JSONResponse
@@ -17,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import db
+import http_util
 import queue_io
 import tracker
 import harvester
@@ -64,6 +66,45 @@ def _refresh_csv(conn) -> None:
         tracker.export_csv(conn)
     except Exception:  # noqa: BLE001 - tracker is best-effort, never break a request
         pass
+
+
+# Arbeitnow runs localized TLDs for the same platform (arbeitnow.com,
+# arbeitnow.fr, arbeitnow.co, ...) — match the "arbeitnow.<tld>" host itself,
+# not a hardcoded ".com", so the redirect fix below applies to all of them.
+_ARBEITNOW_HOST_RE = re.compile(r"^(www\.)?arbeitnow\.[a-z]{2,}$")
+
+
+def _is_arbeitnow_url(url: str) -> bool:
+    return bool(_ARBEITNOW_HOST_RE.match(urlparse(url).netloc.lower()))
+
+
+def _resolve_arbeitnow_apply_url(conn, job: dict) -> None:
+    """Arbeitnow doesn't host an application form itself: its own "Apply Now"
+    button is a same-site /apply route that either 302s to the real ATS, or
+    (for jobs using Arbeitnow's own quick-apply form: name, CV, Apply button,
+    nothing else) answers 200 right there. Resolve it once, lazily, the first
+    time this job's detail is opened, and cache the result so it's a one-time
+    cost per job rather than something every harvest has to pay for.
+    """
+    url = job.get("apply_url") or ""
+    if job.get("ats_type") != "arbeitnow" or not _is_arbeitnow_url(url):
+        return
+    probe = url.rstrip("/") + "/apply"
+    result = http_util.resolve_redirect(probe)
+    if result is None:
+        return  # network hiccup — leave apply_url as-is, retry on the next open
+    status, location = result
+    if status in (301, 302, 303, 307, 308) and location:
+        dest = urljoin(probe, location)
+        if urlparse(dest).netloc and not _is_arbeitnow_url(dest):
+            job["apply_url"] = dest
+            db.set_apply_url(conn, job["id"], dest)
+    elif status == 200:
+        # this IS the final page (Arbeitnow's own quick-apply form), not a
+        # listing to redirect away from.
+        job["apply_url"] = probe
+        db.set_apply_url(conn, job["id"], probe)
+    # else (404/5xx/...): leave apply_url unchanged.
 
 
 def _snapshot(job: dict) -> dict:
@@ -411,6 +452,7 @@ def get_job(job_id: str):
         job = db.get_job(conn, job_id)
         if not job:
             raise HTTPException(404, "job not found")
+        _resolve_arbeitnow_apply_url(conn, job)
         job["materials"] = queue_io.read_materials(job_id)
         job["materials_struct"] = queue_io.read_materials_structured(job_id)
         model = learn.load(conn)
@@ -619,16 +661,43 @@ def import_all(body: ImportBody):
 
 
 # --- apply workspace: iframe proxy -----------------------------------------
+# ATS platforms whose client app routes entirely off window.location (React-
+# style SPA routers). Serving their HTML through srcdoc/a proxy URL gives the
+# iframe a location that doesn't match their real path, so their own router
+# can't find the posting and renders ITS OWN "page not found" — which reads as
+# a dead job to the user even though the real page is fine. No text-rewriting
+# trick fixes this without a real reverse proxy, so skip the fetch entirely and
+# go straight to the blocked-embed fallback instead of showing that misleading
+# page inside our iframe.
+_NON_EMBEDDABLE_HOSTS = ("ashbyhq.com", "myworkdayjobs.com")
+
+
+def _is_known_non_embeddable(url: str) -> bool:
+    host = urlparse(url).netloc.lower()
+    return any(host == h or host.endswith("." + h) for h in _NON_EMBEDDABLE_HOSTS)
+
+
 @app.get("/api/proxy")
 def proxy(url: str):
     """Best-effort fetch of an apply page with frame-blocking headers stripped, so it
     can render inside the Apply Workspace iframe for side-by-side copy-paste.
 
-    Classic server-rendered ATS pages (Greenhouse, Lever) usually work; heavy SPAs
-    (Ashby, Workday) may not fully render — the UI offers a 'pop out' fallback.
+    Classic server-rendered ATS pages (Greenhouse, Lever) usually work; known
+    SPA-only platforms (see _NON_EMBEDDABLE_HOSTS) are rejected up front.
+
+    On failure (dead link, refuses to answer, times out, isn't HTML, or is a
+    known-non-embeddable host) this returns a JSON error with a non-2xx status
+    instead of a 200 HTML page, so the frontend can tell success from failure
+    and show its own blocked-embed card rather than a misleading page (either
+    an error snippet, or the ATS's own client-side "not found") rendered
+    inside the iframe.
     """
     if not (url.startswith("http://") or url.startswith("https://")):
         raise HTTPException(400, "bad url")
+    if _is_known_non_embeddable(url):
+        return JSONResponse(
+            {"ok": False, "status": None, "reason": "This site's application form doesn't survive embedding"},
+            status_code=502)
     req = urllib.request.Request(url, headers={
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
                       "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
@@ -638,13 +707,13 @@ def proxy(url: str):
         with urllib.request.urlopen(req, timeout=12) as r:
             ctype = r.headers.get("Content-Type", "text/html")
             raw = r.read()
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as e:  # noqa
-        return HTMLResponse(
-            f"<div style='font:14px system-ui;color:#a3acbe;padding:32px'>"
-            f"Couldn't embed this page ({type(e).__name__}). Use <b>Pop out</b> to open it in a window.</div>",
-            status_code=200)
+    except urllib.error.HTTPError as e:
+        return JSONResponse({"ok": False, "status": e.code, "reason": str(e.reason)}, status_code=502)
+    except (urllib.error.URLError, TimeoutError) as e:  # noqa
+        reason = str(getattr(e, "reason", e)) or type(e).__name__
+        return JSONResponse({"ok": False, "status": None, "reason": reason}, status_code=502)
     if "html" not in ctype:
-        return HTMLResponse("<div style='padding:32px;font:14px system-ui'>Not an HTML page.</div>")
+        return JSONResponse({"ok": False, "status": 200, "reason": "Not an HTML page"}, status_code=502)
     try:
         text = raw.decode("utf-8", errors="replace")
     except Exception:  # noqa

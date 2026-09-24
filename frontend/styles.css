@@ -502,6 +502,9 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
 .ws-hint > span { flex: 1; min-width: 0; }
 .ws-stage { position: relative; flex: 1; min-height: 0; }
 .ws-frame { position: absolute; inset: 0; border: 0; width: 100%; height: 100%; background: #fff; }
+.ws-stage .empty .btn { margin-top: 2px; }
+.ico.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* the docked workspace has less width to work with than the old full-screen
    overlay did, so it gets its own container-query breakpoints (keyed to the

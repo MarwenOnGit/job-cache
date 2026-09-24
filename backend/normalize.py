@@ -4,10 +4,13 @@ from __future__ import annotations
 import html
 import re
 from typing import Optional
+from urllib.parse import urlparse
 
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"[ \t\r\f\v]+")
 _NL_RE = re.compile(r"\n{3,}")
+_HREF_RE = re.compile(r'<a\b[^>]*\bhref=["\']([^"\']+)["\'][^>]*>(.*?)</a>', re.IGNORECASE | re.DOTALL)
+_SOCIAL_DOMAINS = {"linkedin.com", "twitter.com", "x.com", "facebook.com", "instagram.com", "youtube.com"}
 
 # --- Target locations -------------------------------------------------------
 # Canonical location buckets. Ordered: specific cities first, then country-level
@@ -139,6 +142,42 @@ def strip_html(text: Optional[str]) -> str:
     text = _WS_RE.sub(" ", text)
     text = _NL_RE.sub("\n\n", text)
     return text.strip()
+
+
+def extract_apply_link(raw_html: Optional[str], exclude_domain: str = "") -> Optional[str]:
+    """Best-effort pull of the real application-form link out of an aggregator's
+    raw HTML job description.
+
+    Boards like Arbeitnow, Jobicy and Remotive don't host a form themselves —
+    their API's own "url" field just points back to their own listing page, and
+    the actual link to the employer's ATS is buried as an <a href> somewhere in
+    the description ("Apply here: ..."). Call this BEFORE strip_html() throws
+    the tags away. Prefers a link whose text/href mentions "apply"; otherwise
+    falls back to the last external, non-social link (apply links are usually
+    near the end of the posting). Returns None if nothing usable is found, so
+    callers can fall back to the aggregator's own URL unchanged.
+    """
+    if not raw_html:
+        return None
+    candidates = []
+    for href, text in _HREF_RE.findall(html.unescape(raw_html)):
+        href = href.strip()
+        if not href.lower().startswith("http"):
+            continue
+        host = urlparse(href).netloc.lower()
+        if host.startswith("www."):
+            host = host[4:]
+        if exclude_domain and exclude_domain in host:
+            continue
+        if any(d in host for d in _SOCIAL_DOMAINS):
+            continue
+        candidates.append((href, _TAG_RE.sub(" ", text).strip().lower()))
+    if not candidates:
+        return None
+    for href, text in candidates:
+        if "apply" in text or "apply" in href.lower():
+            return href
+    return candidates[-1][0]
 
 
 def classify_city(location_raw: Optional[str]) -> str:

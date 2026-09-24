@@ -36,10 +36,23 @@ class TestArbeitnow(unittest.TestCase):
         self.assertEqual(j.company, "Berlin Co")
         self.assertIn("Berlin", j.location_raw)
         self.assertIn("Remote", j.location_raw)             # remote flag appended
+        self.assertEqual(j.apply_url, "https://arbeitnow.com/jobs/x")  # no link in body -> listing page
         harvester.enrich(j)
         self.assertEqual(j.city, "berlin")                  # specific city wins over remote
         self.assertEqual(j.role_family, "data_eng")
         self.assertTrue(harvester.keep(j))
+
+    def test_prefers_the_real_apply_link_from_the_posting(self):
+        payload = {"data": [{
+            "slug": "data-engineer-berlin-co", "company_name": "Berlin Co", "title": "Data Engineer",
+            "description": "<p>Build ETL pipelines.</p><p>Apply here: "
+                            '<a href="https://boards.greenhouse.io/berlinco/jobs/1">link</a></p>',
+            "remote": True, "url": "https://arbeitnow.com/jobs/x", "location": "Berlin",
+            "created_at": 1756000000,
+        }]}
+        jobs = arbeitnow.parse({"name": "Arbeitnow"}, payload)
+        self.assertEqual(jobs[0].apply_url, "https://boards.greenhouse.io/berlinco/jobs/1")
+        self.assertNotIn("<a", jobs[0].description)  # still stripped for display
 
 
 class TestJobicy(unittest.TestCase):

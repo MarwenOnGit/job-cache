@@ -12,7 +12,7 @@ from typing import List
 
 from http_util import get_json
 from models import Job
-from normalize import strip_html
+from normalize import extract_apply_link, strip_html
 
 BASE = "https://www.arbeitnow.com/api/job-board-api"
 
@@ -28,14 +28,19 @@ def parse(company: dict, payload: dict) -> List[Job]:
     jobs: List[Job] = []
     for j in payload.get("data", []) or []:
         created = j.get("created_at")
+        raw_desc = j.get("description", "") or ""
+        listing_url = j.get("url", "") or ""
+        # Arbeitnow's own "url" is its listing page, not the employer's form —
+        # the real apply link is usually just an <a href> inside the posting.
+        apply_url = extract_apply_link(raw_desc, exclude_domain="arbeitnow.com") or listing_url
         jobs.append(Job(
             company=(j.get("company_name") or "").strip() or "Unknown",
             ats_type="arbeitnow",
             ats_job_id=str(j.get("slug") or j.get("url")),
             title=j.get("title", "") or "",
             location_raw=_location(j),
-            description=strip_html(j.get("description", "")),
-            apply_url=j.get("url", "") or "",
+            description=strip_html(raw_desc),
+            apply_url=apply_url,
             posted_at=str(created) if created is not None else None,
             is_startup=False,
         ))
