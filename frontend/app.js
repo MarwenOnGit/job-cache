@@ -793,10 +793,9 @@ function insightsPanelsHtml(ins) {
   const likePanel = (title, ns) => `<div class="panel"><h3>${title}</h3>${affRows(ins.likes[ns] || [], maxW)}</div>`;
   const maxN = ins.timeline.length ? Math.max(1, ...ins.timeline.map((d) => d.n)) : 1;
   const spark = ins.timeline.length
-    ? `<div class="spark">${ins.timeline.map((d) => `<div class="spark-col" title="${d.day}: ${d.n}"><span class="spark-n">${d.n || ""}</span><span class="bar" style="height:${(d.n / maxN) * 100}%"></span></div>`).join("")}</div>`
+    ? `<div class="spark-wrap"><div class="spark">${ins.timeline.map((d) => `<div class="spark-col" title="${d.day}: ${d.n}"><span class="spark-n">${d.n || ""}</span><span class="bar" style="height:${(d.n / maxN) * 100}%"></span></div>`).join("")}</div></div>`
     : `<div style="color:var(--faint);font-size:12.5px">No activity logged yet.</div>`;
   return `
-    <div class="apps-section-h">Insights</div>
     <div class="grid aff-grid" style="margin-bottom:16px">
       ${likePanel("Roles", "role")}
       ${likePanel("Locations", "city")}
@@ -807,10 +806,7 @@ function insightsPanelsHtml(ins) {
       <div class="panel"><h3>Passed on</h3>${affRows([...(ins.dislikes.kw || []), ...(ins.dislikes.role || []), ...(ins.dislikes.city || [])].sort((a, b) => a.weight - b.weight).slice(0, 8), maxW)}</div>
       <div class="panel"><h3>Level &amp; type</h3>${affRows([...(ins.likes.seniority || []), ...(ins.likes.startup || []), ...(ins.likes.sponsorship || [])], maxW)}</div>
     </div>` : ""}
-    <div class="panel"><h3>All activity <span class="pill muted">30d</span></h3>
-      <p class="ins-activity-note">Every queue, star, dismiss, and status change — not just applications sent.</p>
-      ${spark}
-    </div>`;
+    <div class="panel"><h3>Applications <span class="pill muted">30d</span></h3>${spark}</div>`;
 }
 
 function computeApplicationCompanies(data) {
@@ -859,21 +855,26 @@ async function loadApplications() {
   if (appsCompanyFilter && !computeApplicationCompanies(appsData).some((c) => c.company === appsCompanyFilter)) appsCompanyFilter = null;
   if (appsCompanyFilter) renderAppsDrill(); else renderAppsOverview();
 }
-// Default landing view: at-a-glance tiles, then a bubble per company (logo,
-// count, status highlights), then the full insights — one continuous scroll,
-// no tabs. Full per-job details only show up once you drill into a company.
+// Default landing view: Companies (bubbles) on the left at 70% width, its
+// own scroll; Insights (banner, at-a-glance, affinity panels, activity) on
+// the right at 30%, no tabs. Full per-job details only show up once you
+// drill into a company.
 function renderAppsOverview() {
   const wrap = $("#appsBodyWrap"); if (!wrap || !appsData) return;
   const companies = computeApplicationCompanies(appsData);
   const bubblesHtml = companies.length
     ? `<div class="co-bubbles">${companies.map(companyBubbleHtml).join("")}</div>`
     : emptyState("applications", "No applications yet", "Queue a job for Claude, or mark one as applied, and it lands here.");
-  wrap.innerHTML = `<div class="scroll pad narrowpad">
-    ${appsInsights ? insightsBannerHtml(appsInsights) : ""}
-    ${appsInsights ? `<div class="apps-section-h">At a glance</div>${insightsTilesHtml(appsInsights)}` : ""}
-    <div class="apps-section-h">Companies</div>
-    ${bubblesHtml}
-    ${appsInsights ? insightsPanelsHtml(appsInsights) : ""}
+  wrap.innerHTML = `<div class="apps-split">
+    <div class="apps-col-companies scroll pad">
+      <div class="apps-section-h apps-section-h--first">Companies</div>
+      ${bubblesHtml}
+    </div>
+    <div class="apps-col-insights scroll pad">
+      ${appsInsights ? insightsBannerHtml(appsInsights) : ""}
+      ${appsInsights ? `<div class="apps-section-h apps-section-h--first">At a glance</div>${insightsTilesHtml(appsInsights)}` : ""}
+      ${appsInsights ? insightsPanelsHtml(appsInsights) : ""}
+    </div>
   </div>`;
   $$("[data-co]", wrap).forEach((el) => (el.onclick = () => { appsCompanyFilter = el.dataset.co; selectedId = null; renderAppsDrill(); }));
 }

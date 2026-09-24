@@ -255,8 +255,18 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
 .apps-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .narrowpad { max-width: 900px; margin: 0 auto; width: 100%; }
 .apps-section-h { font-family: var(--font-display); font-size: 15.5px; font-weight: 700; color: var(--title); margin: 22px 0 10px; }
-.apps-section-h:first-child { margin-top: 0; }
-.ins-activity-note { margin: -6px 0 12px; font-size: 12px; color: var(--faint); }
+.apps-section-h--first { margin-top: 0; }
+
+/* Companies (70%) + Insights (30%), side by side, each scrolling on its own —
+   not one long stacked page. */
+.apps-split { flex: 1; min-height: 0; display: grid; grid-template-columns: 7fr 3fr; }
+.apps-col-companies { overflow-y: auto; min-height: 0; border-right: 1px solid var(--line); }
+.apps-col-insights { overflow-y: auto; min-height: 0; }
+/* the insights column is narrow by design — panels that assume a wide page
+   (2-up affinity grids, an evenly-stretched 30-bar chart) need their own
+   layout here instead of squeezing the shared classes unreadably thin. */
+.apps-col-insights .tiles { grid-template-columns: 1fr 1fr; }
+.apps-col-insights .aff-grid { grid-template-columns: 1fr; }
 .co-bubbles { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 13px; }
 .co-bubble {
   display: flex; flex-direction: column; align-items: center; text-align: center; gap: 7px;
@@ -556,8 +566,12 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
 .aff-track > span.neg { right: 50%; background: var(--bad); }
 .aff-sup { color: var(--muted); font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
-.spark { display: flex; align-items: flex-end; gap: 4px; height: 94px; }
-.spark-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; height: 100%; }
+/* Fixed-width columns (not flex:1) so 30 days of bars stay legible even in
+   the narrow Insights column — it scrolls horizontally there instead of
+   squeezing every bar down to a few illegible pixels. */
+.spark-wrap { overflow-x: auto; }
+.spark { display: flex; align-items: flex-end; gap: 4px; height: 94px; width: max-content; }
+.spark-col { flex: none; width: 14px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; height: 100%; }
 .spark-n { font-size: 9.5px; color: var(--faint); font-variant-numeric: tabular-nums; line-height: 1; }
 .spark .bar { width: 100%; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 2px; opacity: .85; }
 .spark .bar:hover { opacity: 1; }

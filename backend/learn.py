@@ -255,21 +255,21 @@ def insights(conn) -> dict:
     likes = {ns: _top(model, ns, +1) for ns in NAMESPACES}
     dislikes = {ns: _top(model, ns, -1) for ns in NAMESPACES}
 
-    # Activity timeline: every one of the last 30 calendar days, zero-filled —
-    # not just the days that happen to have an event. Sorting/slicing the
-    # sparse by_day keys silently dropped quiet days entirely, which made a
-    # handful of busy days look like the whole chart (e.g. 5 bars instead of 30).
-    events = db.recent_events(conn, limit=2000)
+    # Applications-per-day: every one of the last 30 calendar days, zero-filled.
+    # This used to tally every decision event (queue/star/dismiss/status
+    # change), which put "dismissed 100 postings" and "applied to 2 jobs" on
+    # the same number — now it's specifically applications, same source as
+    # the Overview "This week" strip.
+    applied_events = db.applied_events(conn)
     by_day = Counter()
-    action_counts = Counter()
-    for e in events:
+    for e in applied_events:
         day = (e.get("ts") or "")[:10]
         if day:
             by_day[day] += 1
-        action_counts[e.get("action")] += 1
     today = datetime.now(timezone.utc).date()
     last_30_days = [(today - timedelta(days=i)).isoformat() for i in range(29, -1, -1)]
     timeline = [{"day": d, "n": by_day.get(d, 0)} for d in last_30_days]
+    action_counts = Counter(e.get("action") for e in db.recent_events(conn, limit=2000))
 
     pursued = sum(funnel[s] for s in POSITIVE_STATUS)
     rejected = sum(funnel[s] for s in NEGATIVE_STATUS)
