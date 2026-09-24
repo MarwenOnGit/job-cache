@@ -35,7 +35,7 @@ const ICONS = {
   applications: V('<path d="M22 3 11 14"/><path d="M22 3l-7 18-4-8-8-4 19-6Z"/>'),
   insights: V('<path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 16v-4M13 16V8M18 16v-6"/>'),
   profile: V('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'),
-  settings: V('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 8 2.6 1.6 1.6 0 0 0 9 1.1V1a2 2 0 1 1 4 0v.1A1.6 1.6 0 0 0 15 2.6a1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1Z"/>'),
+  settings: V('<path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 0 1 0 .255c-.007.378.138.75.43.991l1.005.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.296-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281Z"/><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>'),
   sparkle: V('<path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="M12 8.5 13.2 11 15.7 12.2 13.2 13.4 12 15.9 10.8 13.4 8.3 12.2 10.8 11 12 8.5Z"/>'),
   check: V('<path class="check-draw" d="M4 12.5l5 5L20 6.5"/>'),
   copy: V('<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>'),
@@ -86,7 +86,6 @@ const NAV = [
   { id: "jobs", icon: "jobs", label: "Jobs", sec: null },
   { id: "queue", icon: "queue", label: "Queue", sec: null },
   { id: "applications", icon: "applications", label: "Applications", sec: null },
-  { id: "insights", icon: "insights", label: "Insights", sec: null },
   { id: "profile", icon: "profile", label: "Profile", sec: null },
   { id: "about", icon: "book", label: "How to use", sec: null },
 ];
@@ -410,9 +409,11 @@ const JOBS_KW_CHIPS = ["Python", "Backend", "LLM", "RAG", "SQL", "Docker"];
 // search, saved-only, sort — is instant client-side filtering over this array,
 // same as the rest of this session's "make it feel instant" work.
 let jobsAll = [];
+const JOBS_PAGE_SIZE = 24;
+let jobsIO = null;
 let jobsView = {
   allLevels: false, q: "", kw: [], cities: new Set(), spon: "", ctype: "", posted: "",
-  sort: "fy", starredOnly: false, expandedId: null,
+  sort: "fy", starredOnly: false, expandedId: null, visibleCount: JOBS_PAGE_SIZE,
 };
 function daysAgo(iso) {
   if (!iso) return null;
@@ -493,6 +494,7 @@ async function loadJobsAll(forceToast) {
   ]);
   jobsAll = data.jobs;
   jobsPrefs = prefs && prefs.preferences;
+  jobsView.visibleCount = JOBS_PAGE_SIZE;
   // Arriving here from Overview or the command palette with a specific job in
   // mind (selectedId already set) opens straight to it, expanded and in view.
   const preselect = selectedId && jobsAll.some((j) => j.id === selectedId) ? selectedId : null;
@@ -575,9 +577,9 @@ function jobCardHtml(j, scoreKey) {
     </div>
     <div class="jf-cardactions">
       <button class="btn btn-ghost btn-sm star-btn ${j.starred ? "on" : ""}" data-star="${j.id}">${ico("star", "btn-ico")}<span>${j.starred ? "Saved" : "Save"}</span></button>
-      <button class="btn btn-ghost btn-sm" data-dismiss="${j.id}">${ico("x", "btn-ico")}<span>Not for me</span></button>
       <span class="jf-posted">${ico("clock", "ico tag-ico")}${ago(j.posted_at)}</span>
       <span class="grow"></span>
+      <button class="btn btn-ghost btn-sm" data-dismiss="${j.id}">${ico("x", "btn-ico")}<span>Not for me</span></button>
       <button class="btn btn-primary btn-sm" data-queue="${j.id}">Queue for Claude</button>
     </div>
     ${expanded ? jfExpandHtml(j) : ""}
@@ -604,10 +606,36 @@ function renderJobsFeed() {
   const list = computeJobsList();
   listCache = list.map((j) => j.id);
   const scoreKey = jobsView.sort === "match" ? "match_score" : "for_you";
-  $("#jfCards").innerHTML = list.length ? list.map((j) => jobCardHtml(j, scoreKey)).join("")
+  // A job deep-linked from Overview/palette must land in view even if it's
+  // past the current page — widen the page rather than leave it unrendered.
+  if (jobsView.expandedId) {
+    const idx = list.findIndex((j) => j.id === jobsView.expandedId);
+    if (idx >= 0 && idx >= jobsView.visibleCount) jobsView.visibleCount = idx + 1;
+  }
+  const shown = list.slice(0, jobsView.visibleCount || JOBS_PAGE_SIZE);
+  const hasMore = shown.length < list.length;
+  $("#jfCards").innerHTML = list.length
+    ? shown.map((j) => jobCardHtml(j, scoreKey)).join("") + (hasMore ? `<div class="jf-sentinel" id="jfSentinel"></div>` : "")
     : emptyState("search", "Nothing matches these filters", "Widen your filters or clear them to see everything.");
   wireJobsCards();
+  wireJobsLazyLoad(hasMore);
   refreshJobsChrome();
+}
+// Infinite scroll: the feed lives inside .jf-layout's own scroll container
+// (not the window), so the observer's root has to be pointed at it explicitly.
+function wireJobsLazyLoad(hasMore) {
+  if (jobsIO) { jobsIO.disconnect(); jobsIO = null; }
+  if (!hasMore) return;
+  const sentinel = $("#jfSentinel");
+  const root = $(".jf-layout");
+  if (!sentinel || !root) return;
+  jobsIO = new IntersectionObserver((entries) => {
+    if (entries.some((e) => e.isIntersecting)) {
+      jobsView.visibleCount = (jobsView.visibleCount || JOBS_PAGE_SIZE) + JOBS_PAGE_SIZE;
+      renderJobsFeed();
+    }
+  }, { root, rootMargin: "600px" });
+  jobsIO.observe(sentinel);
 }
 // Everything except the card list itself (sidebar filters, tabs, sort, the
 // summary line) — split out so a single dismiss/queue can update counts
@@ -626,28 +654,29 @@ function refreshJobsChrome() {
   wireJobsSide();
   wireJobsTop();
 }
+function refilterJobs() { jobsView.visibleCount = JOBS_PAGE_SIZE; renderJobsFeed(); }
 function wireJobsSide() {
   const host = $("#jfSide");
-  $("#jfQ", host).oninput = (e) => { jobsView.q = e.target.value; renderJobsFeed(); $("#jfQ").focus(); $("#jfQ").selectionStart = $("#jfQ").value.length; };
+  $("#jfQ", host).oninput = (e) => { jobsView.q = e.target.value; refilterJobs(); $("#jfQ").focus(); $("#jfQ").selectionStart = $("#jfQ").value.length; };
   $$("[data-kw]", host).forEach((b) => (b.onclick = () => {
-    const k = b.dataset.kw; jobsView.kw = jobsView.kw.includes(k) ? jobsView.kw.filter((x) => x !== k) : [...jobsView.kw, k]; renderJobsFeed();
+    const k = b.dataset.kw; jobsView.kw = jobsView.kw.includes(k) ? jobsView.kw.filter((x) => x !== k) : [...jobsView.kw, k]; refilterJobs();
   }));
   $$(".jf-cityrow", host).forEach((b) => (b.onclick = () => {
-    const c = b.dataset.city; if (jobsView.cities.has(c)) jobsView.cities.delete(c); else jobsView.cities.add(c); renderJobsFeed();
+    const c = b.dataset.city; if (jobsView.cities.has(c)) jobsView.cities.delete(c); else jobsView.cities.add(c); refilterJobs();
   }));
   $$("[data-pillval]", host).forEach((b) => (b.onclick = () => {
     const group = b.closest("[data-pillgroup]").dataset.pillgroup;
     const key = group === "spon" ? "spon" : group === "ctype" ? "ctype" : "posted";
     jobsView[key] = jobsView[key] === b.dataset.pillval ? "" : b.dataset.pillval;
-    renderJobsFeed();
+    refilterJobs();
   }));
   const lvl = $("#jfLevelToggle", host); if (lvl) lvl.onclick = () => { jobsView.allLevels = !jobsView.allLevels; loadJobsAll(false); };
   const clr = $("#jfClear", host); if (clr) clr.onclick = () => { jobsView = { ...jobsView, q: "", kw: [], cities: new Set(), spon: "", ctype: "", posted: "", allLevels: false }; loadJobsAll(false); };
   const editP = $("#jfEditPrefs", host); if (editP) editP.onclick = () => setPage("profile");
 }
 function wireJobsTop() {
-  $$("#jfTabs [data-tab]").forEach((b) => (b.onclick = () => { jobsView.starredOnly = b.dataset.tab === "saved"; renderJobsFeed(); }));
-  $$("#jfSort [data-sort]").forEach((b) => (b.onclick = () => { jobsView.sort = b.dataset.sort; renderJobsFeed(); }));
+  $$("#jfTabs [data-tab]").forEach((b) => (b.onclick = () => { jobsView.starredOnly = b.dataset.tab === "saved"; refilterJobs(); }));
+  $$("#jfSort [data-sort]").forEach((b) => (b.onclick = () => { jobsView.sort = b.dataset.sort; refilterJobs(); }));
 }
 function wireJobsCards() {
   const host = $("#jfCards");
@@ -704,27 +733,17 @@ async function queueJobCard(id) {
    Pages: Queue + Applications (grouped)
    ═══════════════════════════════════════════════════════════════════════════ */
 async function renderGrouped(kind) {
-  const isQueue = kind === "queue";
-  const title = isQueue ? "Queue" : "Applications";
-  const sub = isQueue ? "Jobs handed to Claude, materials to review, and an assistant for application questions." : "Everything you've applied to and where it stands.";
-  const actions = isQueue ? `<button class="btn btn-ghost" id="qaBtn">${ico("chat", "btn-ico")}<span>Q&amp;A</span></button><button class="btn btn-ghost" id="reloadBtn">${ico("refresh", "btn-ico")}<span>Refresh</span></button>`
-    : `<a class="btn btn-ghost" href="/api/applications.csv" download="applications.csv">${ico("download", "btn-ico")}<span>CSV</span></a><button class="btn btn-ghost" id="reloadBtn">${ico("refresh", "btn-ico")}<span>Refresh</span></button>`;
-  if (isQueue) {
-    splitShell(title, sub, actions);
-    $("#reloadBtn").onclick = reload;
-    $("#qaBtn").onclick = () => { selectedId = null; $$(".card").forEach((el) => el.classList.remove("active")); renderQAChat(); };
-    await loadGrouped(QUEUE_GROUPS, QUEUE_EMPTY_ARGS);
-  } else {
-    appsCompanyFilter = null;
-    splitShell(title, sub, actions, `<div class="apps-overview" id="appsOverview"></div>`);
-    $("#reloadBtn").onclick = reload;
-    await loadApplications();
-  }
+  splitShell("Queue", "Jobs handed to Claude, materials to review, and an assistant for application questions.",
+    `<button class="btn btn-ghost" id="qaBtn">${ico("chat", "btn-ico")}<span>Q&amp;A</span></button><button class="btn btn-ghost" id="reloadBtn">${ico("refresh", "btn-ico")}<span>Refresh</span></button>`);
+  $("#reloadBtn").onclick = reload;
+  $("#qaBtn").onclick = () => { selectedId = null; $$(".card").forEach((el) => el.classList.remove("active")); renderQAChat(); };
+  await loadGrouped(QUEUE_GROUPS, QUEUE_EMPTY_ARGS);
 }
 
-/* ── Applications overview: company filter chips ─────────────────────────── */
+/* ── Applications: company bubbles (default) + drill-in history, Insights tab ─ */
 let appsData = null;
 let appsCompanyFilter = null;
+let appsTab = "overview"; // "overview" | "insights"
 
 function computeApplicationCompanies(data) {
   const byCo = new Map();
@@ -738,44 +757,79 @@ function computeApplicationCompanies(data) {
   }
   return [...byCo.values()].sort((a, b) => (b.items.length - a.items.length) || a.company.localeCompare(b.company));
 }
-function renderAppsOverview() {
-  const host = $("#appsOverview"); if (!host || !appsData) return;
+async function renderApplications() {
+  $("#view").innerHTML = `
+    <div class="pagehead">
+      <div class="pagehead-l"><h1 class="pagetitle">Applications</h1><p class="pagesub">Where things stand, by company — and what the model has learned.</p></div>
+      <div class="pagehead-r">
+        <div class="seg" id="appsTabSeg">
+          <button data-tab="overview" class="${appsTab === "overview" ? "on" : ""}">Overview</button>
+          <button data-tab="insights" class="${appsTab === "insights" ? "on" : ""}">Insights</button>
+        </div>
+        <a class="btn btn-ghost" href="/api/applications.csv" download="applications.csv">${ico("download", "btn-ico")}<span>CSV</span></a>
+        <button class="btn btn-ghost" id="reloadBtn">${ico("refresh", "btn-ico")}<span>Refresh</span></button>
+      </div>
+    </div>
+    <div class="apps-wrap" id="appsBodyWrap"></div>`;
+  $("#reloadBtn").onclick = reload;
+  $$("#appsTabSeg [data-tab]").forEach((b) => (b.onclick = () => { appsTab = b.dataset.tab; renderApplications(); }));
+  if (appsTab === "insights") await renderInsightsBody();
+  else await loadApplications();
+}
+async function loadApplications() {
+  const wrap = $("#appsBodyWrap"); if (!wrap) return;
+  wrap.innerHTML = `<div class="scroll pad narrowpad">${skeletons(3)}</div>`;
+  appsData = await api("/api/applications");
+  if (appsCompanyFilter && !computeApplicationCompanies(appsData).some((c) => c.company === appsCompanyFilter)) appsCompanyFilter = null;
+  if (appsCompanyFilter) renderAppsDrill(); else renderAppsBubbles();
+}
+// Default landing view: a bubble per company (logo, count, status highlights) —
+// full per-job details only show up once you drill into one, per Sami's ask
+// not to see every application's guts unless he's actually after the history.
+function renderAppsBubbles() {
+  const wrap = $("#appsBodyWrap"); if (!wrap || !appsData) return;
   const companies = computeApplicationCompanies(appsData);
-  const totalAll = companies.reduce((s, c) => s + c.items.length, 0);
-  if (!companies.length) { host.innerHTML = ""; return; }
-  // A simple text chip bar (company + count, underlined when active) says
-  // everything the ring-chart cards did in a fraction of the vertical space —
-  // this page is a status list first, an overview second.
-  const chipsHtml = [
-    `<button class="apps-chip ${appsCompanyFilter === null ? "active" : ""}" data-co="">All<span class="n">${totalAll}</span></button>`,
-    ...companies.map((c) => `<button class="apps-chip ${appsCompanyFilter === c.company ? "active" : ""}" data-co="${esc(c.company)}">${esc(c.company)}<span class="n">${c.items.length}</span></button>`),
-  ].join("");
-  host.innerHTML = `<div class="apps-chips">${chipsHtml}</div>`;
-  $$("[data-co]", host).forEach((el) => (el.onclick = () => {
-    const co = el.dataset.co || null; // "" (the All chip) becomes null
-    appsCompanyFilter = appsCompanyFilter === co ? null : co; // click the active company again to clear back to All
-    renderAppsOverview(); renderAppsList();
-  }));
+  if (!companies.length) {
+    wrap.innerHTML = `<div class="scroll pad narrowpad">${emptyState("applications", "No applications yet", "Queue a job for Claude, or mark one as applied, and it lands here.")}</div>`;
+    return;
+  }
+  const bubbles = companies.map((c) => {
+    const tags = [
+      c.counts.interview ? `<span class="co-tag interview">${c.counts.interview} interviewing</span>` : "",
+      c.counts.offer ? `<span class="co-tag offer">${c.counts.offer} offer</span>` : "",
+    ].filter(Boolean).join("");
+    return `<button class="co-bubble" data-co="${esc(c.company)}">
+      ${companyAvatarHtml(c.company)}
+      <div class="co-bubble-name">${esc(c.company)}</div>
+      <div class="co-bubble-n">${c.items.length} application${c.items.length === 1 ? "" : "s"}</div>
+      ${tags ? `<div class="co-bubble-tags">${tags}</div>` : ""}
+    </button>`;
+  }).join("");
+  wrap.innerHTML = `<div class="scroll pad narrowpad"><div class="co-bubbles">${bubbles}</div></div>`;
+  $$("[data-co]", wrap).forEach((el) => (el.onclick = () => { appsCompanyFilter = el.dataset.co; selectedId = null; renderAppsDrill(); }));
+}
+// Drill-in: the familiar list+detail split, scoped to one company — this is
+// where the full history (cover letter, CV variant, status) lives on demand.
+function renderAppsDrill() {
+  const wrap = $("#appsBodyWrap"); if (!wrap) return;
+  wrap.innerHTML = `
+    <div class="apps-drillbar"><button class="linklike" id="appsBack">← All companies</button><span class="apps-drillco">${esc(appsCompanyFilter)}</span></div>
+    <div class="split"><section id="list" class="list"></section><section id="detail" class="detail"></section></div>`;
+  $("#appsBack").onclick = () => { appsCompanyFilter = null; selectedId = null; renderAppsBubbles(); };
+  renderAppsList();
 }
 function renderAppsList() {
   const list = $("#list"); if (!list || !appsData) return;
   const parts = []; listCache = [];
   for (const [status, heading, iconName] of APP_GROUPS) {
-    const items = (appsData.groups[status] || []).filter((j) => !appsCompanyFilter || j.company === appsCompanyFilter);
+    const items = (appsData.groups[status] || []).filter((j) => j.company === appsCompanyFilter);
     if (!items.length) continue;
     parts.push(`<div class="group-label">${ico(iconName)} ${esc(heading)} <span class="n">${items.length}</span></div>`);
     items.forEach((j) => { listCache.push(j.id); parts.push(cardHtml(j)); });
   }
-  list.innerHTML = parts.length ? parts.join("")
-    : emptyState("applications", appsCompanyFilter ? `No applications for ${appsCompanyFilter}` : "No applications yet", "Mark a job as applied and it lands here.");
+  list.innerHTML = parts.length ? parts.join("") : emptyState("applications", `No applications for ${appsCompanyFilter}`, "");
   wireCards();
   if (selectedId && listCache.includes(selectedId)) renderDetail(selectedId); else clearDetail("applications");
-}
-async function loadApplications() {
-  $("#list").innerHTML = skeletons(4);
-  appsData = await api("/api/applications");
-  renderAppsOverview();
-  renderAppsList();
 }
 
 /* ── Application Q&A chat (reusable: Queue page + Apply Workspace drawer) ─ */
@@ -1014,7 +1068,9 @@ async function renderOverview() {
           <span class="fn-n">${bs[k] || 0}</span></div>`).join("")}</div>
       </div>
     </div>`;
-  $$("[data-goto]").forEach((el) => (el.onclick = () => setPage(el.dataset.goto)));
+  $$("[data-goto]").forEach((el) => (el.onclick = () => {
+    if (el.dataset.goto === "insights") { appsTab = "insights"; setPage("applications"); } else setPage(el.dataset.goto);
+  }));
   $$(".pick[data-id]").forEach((el) => (el.onclick = () => { selectedId = el.dataset.id; setPage("jobs"); }));
 }
 
@@ -1032,11 +1088,9 @@ function affRows(list, maxW) {
       <span class="aff-sup">${x.pos}✓ ${x.neg}✕</span></div>`;
   }).join("")}</div>`;
 }
-async function renderInsights() {
-  $("#view").innerHTML = `<div class="pagehead"><div class="pagehead-l"><h1 class="pagetitle">${ico("brain")} Insights</h1><p class="pagesub">What the model has learned from your decisions.</p></div>
-    <div class="pagehead-r"><button class="btn btn-ghost" id="reloadBtn">${ico("refresh", "btn-ico")}<span>Refresh</span></button></div></div>
-    <div class="scroll pad" id="insBody">${skeletons(1)}</div>`;
-  $("#reloadBtn").onclick = reload;
+async function renderInsightsBody() {
+  const wrap = $("#appsBodyWrap"); if (!wrap) return;
+  wrap.innerHTML = `<div class="scroll pad narrowpad" id="insBody">${skeletons(1)}</div>`;
   const ins = await api("/api/insights");
   const m = ins.model;
   const allW = [];
@@ -1050,29 +1104,30 @@ async function renderInsights() {
     : `<div class="model-banner">${ico("brain")}<div class="mb-txt"><b>Still learning.</b> It has ${m.pos} pursued and ${m.neg} rejected so far. <b>Dismiss</b> a few jobs you're not into (and star ones you love) so it can learn what to avoid, not just what you like.</div></div>`;
 
   const likePanel = (title, ns) => `<div class="panel"><h3>${title}</h3>${affRows(ins.likes[ns] || [], maxW)}</div>`;
+  const maxN = ins.timeline.length ? Math.max(1, ...ins.timeline.map((d) => d.n)) : 1;
   const spark = ins.timeline.length
-    ? `<div class="spark">${(() => { const mx = Math.max(1, ...ins.timeline.map((d) => d.n)); return ins.timeline.map((d) => `<span class="bar" style="height:${(d.n / mx) * 100}%" title="${d.day}: ${d.n}"></span>`).join(""); })()}</div>`
+    ? `<div class="spark">${ins.timeline.map((d) => `<div class="spark-col" title="${d.day}: ${d.n}"><span class="spark-n">${d.n || ""}</span><span class="bar" style="height:${(d.n / maxN) * 100}%"></span></div>`).join("")}</div>`
     : `<div style="color:var(--faint);font-size:12.5px">No activity logged yet.</div>`;
 
   $("#insBody").innerHTML = `
     ${banner}
     <div class="grid tiles" style="margin-bottom:16px">
-      <div class="tile"><div class="t-top"><span class="t-label">Decisions made</span>${ico("bolt")}</div><div class="t-num">${ins.totals.decided}</div><div class="t-foot">${ins.totals.pursued} pursued · ${ins.totals.rejected} passed</div></div>
+      <div class="tile"><div class="t-top"><span class="t-label">Decisions</span>${ico("bolt")}</div><div class="t-num">${ins.totals.decided}</div><div class="t-foot">${ins.totals.pursued} pursued · ${ins.totals.rejected} passed</div></div>
       <div class="tile"><div class="t-top"><span class="t-label">Pursue rate</span>${ico("check")}</div><div class="t-num ok">${ins.totals.pursue_rate != null ? Math.round(ins.totals.pursue_rate * 100) + "%" : "—"}</div><div class="t-foot">of decided jobs</div></div>
-      <div class="tile"><div class="t-top"><span class="t-label">Signals learned</span>${ico("brain")}</div><div class="t-num accent">${m.n_features}</div><div class="t-foot">feature weights</div></div>
+      <div class="tile"><div class="t-top"><span class="t-label">Signals</span>${ico("brain")}</div><div class="t-num accent">${m.n_features}</div><div class="t-foot">feature weights</div></div>
       <div class="tile"><div class="t-top"><span class="t-label">Starred</span>${ico("star")}</div><div class="t-num">${ins.totals.starred}</div><div class="t-foot">your shortlist</div></div>
     </div>
     <div class="grid aff-grid" style="margin-bottom:16px">
-      ${likePanel(ico("check") + " Role families you pursue", "role")}
-      ${likePanel(ico("jobs") + " Locations you pursue", "city")}
-      ${likePanel(ico("sparkle") + " Keywords that attract you", "kw")}
-      ${likePanel(ico("trophy") + " Companies you pursue", "company")}
+      ${likePanel("Roles", "role")}
+      ${likePanel("Locations", "city")}
+      ${likePanel("Keywords", "kw")}
+      ${likePanel("Companies", "company")}
     </div>
     ${m.ready ? `<div class="grid aff-grid" style="margin-bottom:16px">
-      <div class="panel"><h3>${ico("x")} What you tend to pass on</h3>${affRows([...(ins.dislikes.kw || []), ...(ins.dislikes.role || []), ...(ins.dislikes.city || [])].sort((a, b) => a.weight - b.weight).slice(0, 8), maxW)}</div>
-      <div class="panel"><h3>${ico("insights")} Seniority & type</h3>${affRows([...(ins.likes.seniority || []), ...(ins.likes.startup || []), ...(ins.likes.sponsorship || [])], maxW)}</div>
+      <div class="panel"><h3>Passed on</h3>${affRows([...(ins.dislikes.kw || []), ...(ins.dislikes.role || []), ...(ins.dislikes.city || [])].sort((a, b) => a.weight - b.weight).slice(0, 8), maxW)}</div>
+      <div class="panel"><h3>Level &amp; type</h3>${affRows([...(ins.likes.seniority || []), ...(ins.likes.startup || []), ...(ins.likes.sponsorship || [])], maxW)}</div>
     </div>` : ""}
-    <div class="panel"><h3>${ico("clock")} Activity (last 30 days)</h3>${spark}</div>`;
+    <div class="panel"><h3>Daily activity</h3>${spark}</div>`;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1207,7 +1262,7 @@ function renderAbout() {
   $("#view").innerHTML = `
     <div class="pagehead"><div class="pagehead-l"><h1 class="pagetitle">${ico("book")} How to use job cache</h1>
       <p class="pagesub">The whole workflow, every command, and the shortcuts.</p></div></div>
-    <div class="scroll pad" id="aboutBody">
+    <div class="scroll pad narrowpad" id="aboutBody">
       <div class="ab-hero">
         <p>job cache finds real jobs, ranks them against your CV, and helps you apply, all locally and with <b>no API keys</b>. The AI is <b>you running Claude Code</b> in this repo: the dashboard and Claude talk through files in the <code>queue/</code> folder, so there's nothing to pay for. Assisted apply, not auto-apply: it finds, ranks, and drafts; you review and submit.</p>
       </div>
@@ -1223,7 +1278,7 @@ function renderAbout() {
             ${step(5, "Generate", "In a terminal in this repo, run <code>claude</code>, then <code>/apply</code>. Claude writes a tailored cover letter and per-role notes, grouped by company, in your voice.")}
             ${step(6, "Review &amp; apply", "Back in the app, open a queued job. Read the materials, hit <b>Apply workspace</b> for side-by-side copy-paste (or <b>Pop out</b> the form), submit, then click <b>Mark as applied</b>.")}
             ${step(7, "Answer questions", "For custom form questions (\"describe a project…\"), use the <b>Q&amp;A</b> on the Queue page. Type <b>@</b> to reference a job, ask, run <code>/answer</code>, and copy the draft.")}
-            ${step(8, "Track &amp; learn", "The <b>Applications</b> tab tracks each application's status. <b>Insights</b> learns what you pursue and sharpens the <b>For you</b> ranking.")}
+            ${step(8, "Track &amp; learn", "<b>Applications</b> tracks each one's status, grouped by company. Its <b>Insights</b> tab shows what the model has learned and sharpens the <b>For you</b> ranking.")}
           </ol>
         </div>
 
@@ -1255,8 +1310,7 @@ function renderAbout() {
             ${pageRow("overview", "Overview", "your hunt at a glance, plus top picks.")}
             ${pageRow("jobs", "Jobs", "browse matches (hides applied &amp; dismissed).")}
             ${pageRow("queue", "Queue", "pursue jobs, review materials, and the Q&amp;A assistant.")}
-            ${pageRow("applications", "Applications", "your tracker, with CSV export.")}
-            ${pageRow("insights", "Insights", "what the model learned about your taste.")}
+            ${pageRow("applications", "Applications", "your tracker by company, an Insights tab, and CSV export.")}
             ${pageRow("profile", "Profile", "your search preferences (countries, roles, titles, keywords), CV, and voice.")}
           </div>
         </div>
@@ -1413,8 +1467,8 @@ async function openPalette() {
     { t: "Go to Overview", ico: "overview", run: () => setPage("overview"), sub: "Page" },
     { t: "Go to Jobs", ico: "jobs", run: () => setPage("jobs"), sub: "Page" },
     { t: "Go to Queue", ico: "queue", run: () => setPage("queue"), sub: "Page" },
-    { t: "Go to Applications", ico: "applications", run: () => setPage("applications"), sub: "Page" },
-    { t: "Go to Insights", ico: "insights", run: () => setPage("insights"), sub: "Page" },
+    { t: "Go to Applications", ico: "applications", run: () => { appsTab = "overview"; setPage("applications"); }, sub: "Page" },
+    { t: "Go to Insights", ico: "insights", run: () => { appsTab = "insights"; setPage("applications"); }, sub: "Applications tab" },
     { t: "Go to Profile", ico: "profile", run: () => setPage("profile"), sub: "Page" },
     { t: "Go to How to use", ico: "book", run: () => setPage("about"), sub: "Page" },
     { t: "Harvest jobs", ico: "sparkle", run: () => { closePalette(); doHarvest(); }, sub: "Action" },
@@ -1619,8 +1673,7 @@ async function reload() {
     if (page === "overview") await renderOverview();
     else if (page === "jobs") await renderJobs();
     else if (page === "queue") await renderGrouped("queue");
-    else if (page === "applications") await renderGrouped("applications");
-    else if (page === "insights") await renderInsights();
+    else if (page === "applications") await renderApplications();
     else if (page === "about") renderAbout();
     else if (page === "profile") await renderProfile();
   } catch (err) {
@@ -1635,7 +1688,7 @@ async function softReload() {
     await refreshCounts();
     if (page === "jobs") await loadJobs();
     else if (page === "queue") await loadGrouped(QUEUE_GROUPS, QUEUE_EMPTY_ARGS);
-    else if (page === "applications") await loadApplications();
+    else if (page === "applications") await (appsTab === "insights" ? renderInsightsBody() : loadApplications());
     else await reload();
   } catch (err) {
     showFatal(err);
@@ -1710,7 +1763,8 @@ document.addEventListener("keydown", (e) => {
   if (typing) return;
   if (gPending) {
     gPending = false;
-    const map = { o: "overview", j: "jobs", q: "queue", a: "applications", i: "insights", p: "profile", h: "about" };
+    const map = { o: "overview", j: "jobs", q: "queue", a: "applications", p: "profile", h: "about" };
+    if (e.key === "i") { appsTab = "insights"; setPage("applications"); return; }
     if (map[e.key]) { setPage(map[e.key]); return; }
   }
   if (e.key === "g") { gPending = true; setTimeout(() => (gPending = false), 800); return; }

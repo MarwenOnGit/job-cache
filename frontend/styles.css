@@ -92,9 +92,9 @@ kbd {
 .app.sidebar-compact { grid-template-columns: var(--sb-compact) 1fr; }
 .app.sidebar-compact .brand-name, .app.sidebar-compact .nav-item .lbl, .app.sidebar-compact .btn-txt,
 .app.sidebar-compact .foot-stat, .app.sidebar-compact .cmd-trigger span, .app.sidebar-compact .cmd-trigger kbd,
-.app.sidebar-compact .nav-sec { display: none; }
+.app.sidebar-compact .nav-sec, .app.sidebar-compact .nav-count { display: none; }
 .app.sidebar-compact .nav-item, .app.sidebar-compact .cmd-trigger { justify-content: center; }
-.app.sidebar-compact .nav-count { position: absolute; top: 2px; right: 3px; min-width: 0; padding: 0 5px; }
+.app.sidebar-compact .foot-row { flex-direction: column; gap: 8px; }
 
 .update-banner {
   display: flex; align-items: center; gap: 12px; padding: 9px 18px;
@@ -133,12 +133,12 @@ kbd {
   display: flex; align-items: center; gap: 9px; width: 100%; cursor: pointer;
   background: var(--surface); border: 1px solid var(--line); color: var(--faint);
   padding: 8px 10px; border-radius: var(--radius-s); font-size: 12.5px; text-align: left;
-  transition: border-color .15s, background .15s;
+  transition: border-color .15s, background .15s; min-width: 0;
 }
 .cmd-trigger:hover { border-color: var(--line-2); }
 .cmd-trigger .ci { width: 15px; height: 15px; flex: none; color: var(--faint); }
-.cmd-trigger span:nth-child(2) { flex: 1; }
-.cmd-trigger kbd { font-size: 10px; }
+.cmd-trigger span:nth-child(2) { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cmd-trigger kbd { font-size: 10px; flex: none; }
 
 .nav { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; overflow-y: auto; }
 .nav-sec { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--faint); padding: 12px 10px 5px; }
@@ -232,20 +232,27 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
 .pad { padding: 24px 26px 60px; }
 
 /* ============================================================================
-   Applications overview — ring cards + company filter
+   Applications — company bubbles (default) + drill-in history
    ========================================================================== */
-.apps-overview { flex: none; padding: 4px 26px 18px; border-bottom: 1px solid var(--line); background: var(--bg); }
-.apps-chips { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 14px; }
-.apps-chip {
-  display: inline-flex; align-items: center; gap: 7px; flex: none; cursor: pointer;
-  background: var(--surface); border: 1px solid var(--line); color: var(--muted);
-  padding: 6px 13px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
-  transition: border-color .14s, background .14s, color .14s;
+.apps-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.narrowpad { max-width: 900px; margin: 0 auto; width: 100%; }
+.co-bubbles { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 13px; }
+.co-bubble {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 7px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-l);
+  padding: 20px 12px 15px; cursor: pointer; transition: border-color .14s, box-shadow .14s, transform .05s;
 }
-.apps-chip:hover { border-color: var(--line-2); color: var(--text); }
-.apps-chip.active { background: var(--accent-weak); border-color: color-mix(in srgb, var(--accent) 40%, transparent); color: var(--text); }
-.apps-chip .n { color: var(--faint); font-variant-numeric: tabular-nums; }
-.apps-chip.active .n { color: var(--accent); }
+.co-bubble:hover { border-color: var(--line-2); box-shadow: var(--shadow); }
+.co-bubble:active { transform: translateY(1px); }
+.co-bubble .jf-avatar { width: 50px; height: 50px; }
+.co-bubble-name { font-family: var(--font-display); font-weight: 700; font-size: 13.5px; color: var(--title); line-height: 1.25; }
+.co-bubble-n { font-size: 11.5px; color: var(--muted); }
+.co-bubble-tags { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-top: 1px; }
+.co-tag { font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.co-tag.interview { color: var(--ok); background: var(--ok-weak); }
+.co-tag.offer { color: var(--star); background: color-mix(in srgb, var(--star) 18%, var(--surface)); }
+.apps-drillbar { display: flex; align-items: center; gap: 12px; padding: 12px 26px; border-bottom: 1px solid var(--line); flex: none; }
+.apps-drillco { font-weight: 700; color: var(--title); font-family: var(--font-display); }
 
 /* ============================================================================
    Workspace list + detail
@@ -293,8 +300,8 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
 /* ============================================================================
    Jobs feed — sticky filter sidebar + expandable cards
    ========================================================================== */
-.jf-layout { display: grid; grid-template-columns: minmax(200px, 250px) minmax(0, 1fr); gap: 20px; padding: 24px 28px 60px; align-items: start; }
-.jf-side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 16px; min-width: 0; }
+.jf-layout { display: grid; grid-template-columns: minmax(200px, 250px) minmax(0, 1fr); gap: 20px; padding: 24px 28px 60px; align-items: start; overflow-y: auto; flex: 1; min-height: 0; }
+.jf-side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 0; min-width: 0; }
 .jf-prefbox { background: var(--sage-soft); border-radius: var(--radius-l); padding: 16px 16px 14px; display: flex; flex-direction: column; gap: 12px; }
 .jf-prefhead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .jf-prefhead span:first-child { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--sage); }
@@ -324,13 +331,14 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
 .jf-switch-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 99px; background: #fffaf3; transition: left .14s var(--ease); }
 .jf-switch.on .jf-switch-knob { left: 14px; }
 
-.jf-feed { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.jf-feed { min-width: 0; width: 100%; max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
 .jf-feedtop { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .jf-feedtop .seg-n, .seg-n { font-size: 11.5px; font-weight: 600; padding: 1px 7px; border-radius: 99px; background: var(--surface-3); color: var(--muted); margin-left: 4px; }
 .jf-feedtop .seg button.on .seg-n { background: var(--accent); color: var(--accent-ink); }
 .jf-sort { display: flex; align-items: center; gap: 8px; }
 .jf-sort-lbl { font-size: 13px; color: var(--faint); }
 .jf-hint { font-size: 12.5px; color: var(--faint); line-height: 1.5; }
+.jf-sentinel { height: 1px; }
 
 .jf-card { padding: 18px 20px 16px; cursor: default; }
 .jf-card:hover { border-color: var(--line-2); }
@@ -368,6 +376,10 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
 @media (max-width: 1040px) {
   .jf-layout { grid-template-columns: 1fr; }
   .jf-side { position: static; }
+}
+@media (max-width: 700px) {
+  .jf-feed { max-width: none; }
+  .jf-layout { padding: 16px 14px 40px; gap: 14px; }
 }
 
 /* ---- detail -------------------------------------------------------------- */
@@ -487,7 +499,7 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
 .tile .t-foot { font-size: 11.5px; color: var(--faint); }
 
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
-.panel h3 { font-size: 14px; margin: 0 0 14px; display: flex; align-items: center; gap: 8px; }
+.panel h3 { font-family: var(--font-display); font-size: 15.5px; font-weight: 700; letter-spacing: -0.01em; color: var(--title); margin: 0 0 14px; display: flex; align-items: center; gap: 8px; }
 .panel h3 .ico { width: 16px; height: 16px; color: var(--faint); }
 .panel h3 a { margin-left: auto; font-size: 12px; font-weight: 500; }
 .two-col { grid-template-columns: 1.3fr 1fr; align-items: start; }
@@ -521,10 +533,12 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
 .aff-track > span { position: absolute; top: 0; bottom: 0; border-radius: 999px; }
 .aff-track > span.pos { left: 50%; background: var(--ok); }
 .aff-track > span.neg { right: 50%; background: var(--bad); }
-.aff-sup { color: var(--faint); font-size: 11px; font-variant-numeric: tabular-nums; }
+.aff-sup { color: var(--muted); font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
-.spark { display: flex; align-items: flex-end; gap: 3px; height: 68px; }
-.spark .bar { flex: 1; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 2px; opacity: .85; }
+.spark { display: flex; align-items: flex-end; gap: 4px; height: 94px; }
+.spark-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; height: 100%; }
+.spark-n { font-size: 9.5px; color: var(--faint); font-variant-numeric: tabular-nums; line-height: 1; }
+.spark .bar { width: 100%; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 2px; opacity: .85; }
 .spark .bar:hover { opacity: 1; }
 
 .model-banner { display: flex; align-items: center; gap: 12px; padding: 13px 16px; border-radius: var(--radius); border: 1px solid var(--line-2); background: var(--surface-2); margin-bottom: 18px; }
@@ -700,9 +714,9 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
 }
 @media (max-width: 720px) {
   .app { grid-template-columns: 60px 1fr; --sb: 60px; }
-  .brand-name, .nav-item .lbl, .btn-txt, .foot-stat, .cmd-trigger span, .cmd-trigger kbd, .nav-sec { display: none; }
+  .brand-name, .nav-item .lbl, .btn-txt, .foot-stat, .cmd-trigger span, .cmd-trigger kbd, .nav-sec, .nav-count { display: none; }
   .nav-item { justify-content: center; } .cmd-trigger { justify-content: center; }
-  .nav-count { position: absolute; top: 2px; right: 3px; min-width: 0; padding: 0 5px; }
+  .foot-row { flex-direction: column; gap: 8px; }
   .searchbox input { width: 130px; }
   .tiles { grid-template-columns: 1fr 1fr; }
 }
