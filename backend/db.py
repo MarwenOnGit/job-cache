@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS jobs (
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_score ON jobs(match_score DESC);
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
+CREATE INDEX IF NOT EXISTS idx_jobs_posted_at ON jobs(posted_at DESC);
 
 CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,6 +64,10 @@ def connect(db_path: Optional[str] = None) -> sqlite3.Connection:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
+    # WAL: readers don't block behind a writer's commit, and commits are far
+    # cheaper (append to the WAL file instead of rewriting the rollback
+    # journal) — this dashboard does frequent small writes alongside reads.
+    conn.execute("PRAGMA journal_mode=WAL")
     return conn
 
 
@@ -110,28 +115,36 @@ def upsert_jobs(conn: sqlite3.Connection, jobs: List[Job]) -> int:
         f"INSERT INTO jobs ({', '.join(JOB_COLUMNS)}) VALUES ({placeholders}) "
         f"ON CONFLICT(id) DO UPDATE SET {updates}, last_seen=excluded.last_seen"
     )
+    rows = []
     for job in jobs:
         row = job.to_row()
         row["first_seen"] = now
         row["last_seen"] = now
-        conn.execute(sql, [row[c] for c in JOB_COLUMNS])
+        rows.append([row[c] for c in JOB_COLUMNS])
+    conn.executemany(sql, rows)
     conn.commit()
     return len(jobs)
 
 
 def mark_closed(conn: sqlite3.Connection, company: str, active_ids: List[str]) -> None:
-    cur = conn.execute("SELECT id, status FROM jobs WHERE company=?", (company,))
-    active = set(active_ids)
-    for row in cur.fetchall():
-        if row["id"] not in active and row["status"] not in ENGAGED and row["status"] not in HIDDEN:
-            conn.execute("UPDATE jobs SET status='closed' WHERE id=?", (row["id"],))
+    """A posting that vanished from this company's ATS listing is closed —
+    unless it's already engaged (queued/applied/...) or already hidden
+    (closed/dismissed), in which case leave it alone. One UPDATE instead of
+    a SELECT-then-loop-of-UPDATEs."""
+    exclude = ENGAGED | set(HIDDEN)
+    id_ph = ",".join("?" for _ in active_ids)
+    status_ph = ",".join("?" for _ in exclude)
+    conn.execute(
+        f"UPDATE jobs SET status='closed' WHERE company=? AND id NOT IN ({id_ph}) "
+        f"AND status NOT IN ({status_ph})",
+        [company, *active_ids, *exclude])
     conn.commit()
 
 
-def get_jobs(conn: sqlite3.Connection, city: Optional[str] = None,
-             role_family: Optional[str] = None, sponsorship: Optional[str] = None,
-             startup: Optional[bool] = None, status: Optional[str] = None,
-             level: str = "all", sort: str = "score") -> List[dict]:
+def _jobs_where(city: Optional[str] = None, role_family: Optional[str] = None,
+                 sponsorship: Optional[str] = None, startup: Optional[bool] = None,
+                 status: Optional[str] = None, level: str = "all",
+                 starred: Optional[bool] = None, q: Optional[str] = None):
     clauses, params = [], []
     if city:
         clauses.append("city=?"); params.append(city)
@@ -152,11 +165,38 @@ def get_jobs(conn: sqlite3.Connection, city: Optional[str] = None,
         clauses.append("(req_years IS NULL OR req_years<=5)")
     elif level == "junior":
         clauses.append("seniority='junior'")
+    if starred is not None:
+        clauses.append("starred=?"); params.append(1 if starred else 0)
+    if q:
+        # SQLite's LIKE is case-insensitive for ASCII (matches the old
+        # Python .lower() behaviour); non-ASCII case-folding differs, an
+        # accepted trade-off for pushing the filter into SQL.
+        clauses.append("(title LIKE ? OR company LIKE ?)")
+        like = f"%{q}%"
+        params.extend([like, like])
     where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    return where, params
+
+
+def get_jobs(conn: sqlite3.Connection, city: Optional[str] = None,
+             role_family: Optional[str] = None, sponsorship: Optional[str] = None,
+             startup: Optional[bool] = None, status: Optional[str] = None,
+             level: str = "all", sort: str = "score",
+             starred: Optional[bool] = None, q: Optional[str] = None) -> List[dict]:
+    where, params = _jobs_where(city, role_family, sponsorship, startup, status, level, starred, q)
     order = {"score": "match_score DESC", "date": "posted_at DESC",
              "company": "company ASC"}.get(sort, "match_score DESC")
     cur = conn.execute(f"SELECT * FROM jobs {where} ORDER BY {order}", params)
     return [Job.row_to_dict(r) for r in cur.fetchall()]
+
+
+def count_jobs(conn: sqlite3.Connection, city: Optional[str] = None,
+               role_family: Optional[str] = None, sponsorship: Optional[str] = None,
+               startup: Optional[bool] = None, status: Optional[str] = None,
+               level: str = "all", starred: Optional[bool] = None, q: Optional[str] = None) -> int:
+    where, params = _jobs_where(city, role_family, sponsorship, startup, status, level, starred, q)
+    row = conn.execute(f"SELECT count(*) c FROM jobs {where}", params).fetchone()
+    return row["c"]
 
 
 def get_tracked(conn: sqlite3.Connection) -> List[dict]:
@@ -173,9 +213,24 @@ def get_job(conn: sqlite3.Connection, job_id: str) -> Optional[dict]:
 
 
 def set_status(conn: sqlite3.Connection, job_id: str, status: str) -> bool:
+    """Does not commit — callers that pair this with log_event() commit once
+    for both, instead of two round trips to disk for one user action."""
     cur = conn.execute("UPDATE jobs SET status=? WHERE id=?", (status, job_id))
-    conn.commit()
     return cur.rowcount > 0
+
+
+def promote_ready(conn: sqlite3.Connection, ids: List[str]) -> int:
+    """Bulk-promote queued/interested jobs to materials_ready in one UPDATE
+    instead of a SELECT-then-loop-of-UPDATEs (used by app._reconcile, which
+    runs on most requests, so it needs to be cheap)."""
+    if not ids:
+        return 0
+    placeholders = ",".join("?" for _ in ids)
+    cur = conn.execute(
+        f"UPDATE jobs SET status='materials_ready' WHERE id IN ({placeholders}) "
+        f"AND status IN ('queued','interested')", list(ids))
+    conn.commit()
+    return cur.rowcount
 
 
 def set_starred(conn: sqlite3.Connection, job_id: str, starred: bool) -> bool:
@@ -197,19 +252,37 @@ def set_apply_url(conn: sqlite3.Connection, job_id: str, apply_url: str) -> bool
 
 
 def log_event(conn: sqlite3.Connection, job_id: str, action: str, features: Optional[dict] = None) -> None:
-    """Append a decision/interaction to the events log (fuel for the learning model)."""
+    """Append a decision/interaction to the events log (fuel for the learning
+    model). Does not commit — see set_status()."""
     import json as _json
     conn.execute(
         "INSERT INTO events (ts, job_id, action, features) VALUES (?,?,?,?)",
         (_now(), job_id, action, _json.dumps(features or {}, ensure_ascii=False)),
     )
-    conn.commit()
 
 
 def all_jobs(conn: sqlite3.Connection) -> List[dict]:
-    """Every job regardless of status — used by the learning model for training signal."""
+    """Every job regardless of status, full columns — used for the /api/export
+    backup and for computing the Insights funnel over every status."""
     cur = conn.execute("SELECT * FROM jobs")
     return [Job.row_to_dict(r) for r in cur.fetchall()]
+
+
+_TRAINING_COLUMNS = "role_family, city, seniority, is_startup, sponsorship, company, title, description, status, starred"
+
+
+def training_jobs(conn: sqlite3.Connection, statuses) -> List[dict]:
+    """Rows the preference model can actually learn from — labeled by status,
+    or starred (which counts as positive regardless of status, see
+    learn._label) — and only the columns features()/_label() need, not every
+    column on the table. Training re-tokenizes title+description for every
+    row, so trimming both the row count and the column count matters."""
+    statuses = list(statuses)
+    status_ph = ",".join("?" for _ in statuses)
+    cur = conn.execute(
+        f"SELECT {_TRAINING_COLUMNS} FROM jobs WHERE starred=1 OR status IN ({status_ph})",
+        statuses)
+    return [dict(r) for r in cur.fetchall()]
 
 
 def recent_events(conn: sqlite3.Connection, limit: int = 500) -> List[dict]:

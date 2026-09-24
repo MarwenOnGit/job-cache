@@ -63,6 +63,63 @@ class TestDB(unittest.TestCase):
         self.assertEqual(len(db.get_jobs(self.conn, role_family="swe")), 1)
         self.assertEqual(len(db.get_jobs(self.conn)), 2)
 
+    def test_count_jobs_matches_get_jobs_for_same_filters(self):
+        db.upsert_jobs(self.conn, [sample_job(), sample_job(ats_job_id="2", city="london", role_family="swe")])
+        self.assertEqual(db.count_jobs(self.conn, city="paris"), len(db.get_jobs(self.conn, city="paris")))
+        self.assertEqual(db.count_jobs(self.conn), len(db.get_jobs(self.conn)))
+
+    def test_get_jobs_starred_is_a_proper_three_state_filter(self):
+        # db.get_jobs()'s starred is a real tri-state filter (True/False/None).
+        # The API layer maps a query-string "false"/absent to None before
+        # calling this, to keep its old truthy-check semantics — that
+        # translation is app.py's job, not db.py's.
+        job = sample_job()
+        db.upsert_jobs(self.conn, [job, sample_job(ats_job_id="2")])
+        db.set_starred(self.conn, job.id, True)
+        self.assertEqual(len(db.get_jobs(self.conn, starred=True)), 1)
+        self.assertEqual(len(db.get_jobs(self.conn, starred=False)), 1)
+        self.assertEqual(len(db.get_jobs(self.conn, starred=None)), 2)
+
+    def test_get_jobs_q_filter_matches_title_or_company(self):
+        db.upsert_jobs(self.conn, [sample_job(), sample_job(ats_job_id="2", company="Other", title="Backend Engineer")])
+        self.assertEqual(len(db.get_jobs(self.conn, q="ml")), 1)
+        self.assertEqual(len(db.get_jobs(self.conn, q="acme")), 1)
+        self.assertEqual(len(db.get_jobs(self.conn, q="engineer")), 2)
+
+    def test_upsert_jobs_batches_multiple_rows(self):
+        n = db.upsert_jobs(self.conn, [sample_job(ats_job_id=str(i)) for i in range(5)])
+        self.assertEqual(n, 5)
+        self.assertEqual(len(db.get_jobs(self.conn)), 5)
+
+    def test_promote_ready_bulk_updates_only_matching_statuses(self):
+        a, b, c = sample_job(ats_job_id="a"), sample_job(ats_job_id="b"), sample_job(ats_job_id="c")
+        db.upsert_jobs(self.conn, [a, b, c])
+        db.set_status(self.conn, b.id, "applied")  # not queued/interested -> must not be touched
+        n = db.promote_ready(self.conn, [a.id, b.id, c.id])
+        self.assertEqual(n, 2)
+        self.assertEqual(db.get_job(self.conn, a.id)["status"], "materials_ready")
+        self.assertEqual(db.get_job(self.conn, b.id)["status"], "applied")
+        self.assertEqual(db.get_job(self.conn, c.id)["status"], "materials_ready")
+
+    def test_promote_ready_empty_ids_is_a_noop(self):
+        self.assertEqual(db.promote_ready(self.conn, []), 0)
+
+    def test_training_jobs_includes_starred_regardless_of_status(self):
+        labeled = sample_job(ats_job_id="1", status="applied")
+        starred_only = sample_job(ats_job_id="2", status="interested")
+        unlabeled = sample_job(ats_job_id="3", status="interested")
+        db.upsert_jobs(self.conn, [labeled, starred_only, unlabeled])
+        db.set_starred(self.conn, starred_only.id, True)
+        rows = db.training_jobs(self.conn, ["applied", "dismissed"])
+        self.assertEqual(len(rows), 2)
+        for r in rows:
+            self.assertIn("description", r)
+            self.assertNotIn("apply_url", r)
+
+    def test_connect_enables_wal_mode(self):
+        mode = self.conn.execute("PRAGMA journal_mode").fetchone()[0]
+        self.assertEqual(mode.lower(), "wal")
+
     def test_applied_events_keeps_first_timestamp_per_job(self):
         job = sample_job()
         db.upsert_jobs(self.conn, [job])
