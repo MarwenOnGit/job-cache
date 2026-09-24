@@ -292,6 +292,17 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
 .list { overflow-y: auto; border-right: 1px solid var(--line); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
 .detail { overflow-y: auto; padding: 24px 30px 60px; container-type: inline-size; }
 .detail.ws-host { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+/* the Apply workspace has to read like a real browser, not a sliver next to
+   the list -- narrow the list column (it's still there to switch jobs, just
+   smaller) so the docked workspace gets the majority of the width. */
+.split:has(.ws-host) { grid-template-columns: 220px 1fr; }
+/* below this, the fixed 384px list column plus the sidebar leaves the detail
+   pane squeezed or clipped -- stack list above detail instead, same pattern
+   the docked Apply workspace already uses at its own narrow breakpoint. */
+@media (max-width: 900px) {
+  .split { grid-template-columns: 1fr; overflow-y: auto; }
+  .list { border-right: 0; border-bottom: 1px solid var(--line); max-height: 42vh; }
+}
 
 .group-label { display: flex; align-items: center; gap: 8px; padding: 12px 8px 5px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); }
 .group-label .ico { width: 14px; height: 14px; }
@@ -621,7 +632,7 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
 .ws-head .ws-title { font-weight: 700; font-size: 14px; }
 .ws-head .ws-co { color: var(--muted); font-size: 13px; }
 .ws-head .spacer { flex: 1; }
-.ws-body { position: relative; flex: 1; display: grid; grid-template-columns: 440px 1fr; min-height: 0; }
+.ws-body { position: relative; flex: 1; display: grid; grid-template-columns: 340px 1fr; min-height: 0; }
 .ws-left { overflow-y: auto; padding: 18px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 13px; background: var(--bg); }
 .ws-right { display: flex; flex-direction: column; min-height: 0; background: var(--surface-2); }
 .ws-qa { position: absolute; top: 0; right: 0; bottom: 0; width: min(380px, 92vw); z-index: 6; display: flex; flex-direction: column; min-height: 0; background: var(--bg); border-left: 1px solid var(--line); box-shadow: var(--shadow-lg); transform: translateX(100%); transition: transform .22s var(--ease); }
@@ -642,7 +653,7 @@ select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; 
 /* the docked workspace has less width to work with than the old full-screen
    overlay did, so it gets its own container-query breakpoints (keyed to the
    detail pane's own width) instead of sharing the page-level ones below */
-@container (max-width: 1000px) { .ws-body { grid-template-columns: 380px 1fr; } }
+@container (max-width: 1000px) { .ws-body { grid-template-columns: 300px 1fr; } }
 @container (max-width: 760px) {
   .ws-body { grid-template-columns: 1fr; }
   .ws-left { border-right: 0; border-bottom: 1px solid var(--line); max-height: 38vh; }

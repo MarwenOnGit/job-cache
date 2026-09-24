@@ -156,7 +156,10 @@ let sidebarCollapsed = false;
 try { sidebarCollapsed = localStorage.getItem("jc-sidebar-collapsed") === "1"; } catch (e) {}
 function updateSidebarCompact() {
   const app = $(".app");
-  if (app) app.classList.toggle("sidebar-compact", sidebarCollapsed);
+  // The Apply workspace needs the width back -- force compact while it's
+  // docked, regardless of the user's manual preference, and fall back to
+  // that preference again as soon as it closes.
+  if (app) app.classList.toggle("sidebar-compact", sidebarCollapsed || !!wsOpenForId);
   const btn = $("#sidebarToggleBtn");
   if (btn) btn.title = sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar";
 }
