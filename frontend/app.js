@@ -29,13 +29,14 @@ const pct = (v) => Math.round((v || 0) * 100);
 /* ── icons (drawn SVG, single stroke) ──────────────────────────────────── */
 const V = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 const ICONS = {
+  sidebar: V('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>'),
   overview: V('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'),
   jobs: V('<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/>'),
   queue: V('<path d="M3 8l9-5 9 5-9 5-9-5Z"/><path d="M3 12l9 5 9-5"/><path d="M3 16l9 5 9-5"/>'),
   applications: V('<path d="M22 3 11 14"/><path d="M22 3l-7 18-4-8-8-4 19-6Z"/>'),
   insights: V('<path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 16v-4M13 16V8M18 16v-6"/>'),
   profile: V('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'),
-  settings: V('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 8 2.6 1.6 1.6 0 0 0 9 1.1V1a2 2 0 1 1 4 0v.1A1.6 1.6 0 0 0 15 2.6a1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1Z"/>'),
+  settings: V('<path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 0 1 0 .255c-.007.378.138.75.43.991l1.005.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.296-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281Z"/><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>'),
   sparkle: V('<path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="M12 8.5 13.2 11 15.7 12.2 13.2 13.4 12 15.9 10.8 13.4 8.3 12.2 10.8 11 12 8.5Z"/>'),
   check: V('<path class="check-draw" d="M4 12.5l5 5L20 6.5"/>'),
   copy: V('<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>'),
@@ -62,6 +63,12 @@ const ICONS = {
   book: V('<path d="M4 5a2 2 0 0 1 2-2h13v15H6a2 2 0 0 0-2 2V5Z"/><path d="M4 20a2 2 0 0 1 2-2h13"/><path d="M9 7h6M9 10h6"/>'),
   terminal: V('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/>'),
   lock: V('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'),
+  pin: V('<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/>'),
+  building: V('<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/>'),
+  globe: V('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>'),
+  tag: V('<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9-9-9Z"/><circle cx="7.5" cy="7.5" r="1.5"/>'),
+  lang: V('<path d="M4 5h9M8.5 3v2M6 5c0 4 3 7 6 8M11 5c0 4-3 7-7 8"/><path d="M13 21l4-9 4 9M14.5 18h5"/>'),
+  send: V('<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/>'),
 };
 const ico = (n, cls = "ico") => `<span class="${cls}">${ICONS[n] || ""}</span>`;
 
@@ -73,14 +80,13 @@ let counts = { jobs: 0, queue: 0, applications: 0, pending: 0, starred: 0 };
 let config = { owner_name: "", theme: "dark" };
 let modelReady = false;
 let listCache = [];              // ids currently shown (for j/k nav)
-let jobsFilters = { city: "", role_family: "", level: "suitable", sponsorship: "", startup: "", sort: "for_you", q: "", starred: "" };
+let jobsPrefs = null;   // /api/preferences, cached for the Jobs sidebar's "Your preferences" box
 
 const NAV = [
   { id: "overview", icon: "overview", label: "Overview", sec: null },
   { id: "jobs", icon: "jobs", label: "Jobs", sec: null },
   { id: "queue", icon: "queue", label: "Queue", sec: null },
   { id: "applications", icon: "applications", label: "Applications", sec: null },
-  { id: "insights", icon: "insights", label: "Insights", sec: null },
   { id: "profile", icon: "profile", label: "Profile", sec: null },
   { id: "about", icon: "book", label: "How to use", sec: null },
 ];
@@ -141,6 +147,23 @@ function renderNav() {
     return `<button class="nav-item ${n.id === page ? "active" : ""}" data-page="${n.id}">${ico(n.icon)}<span class="lbl">${n.label}</span>${badge}</button>`;
   }).join("");
   $$(".nav-item").forEach((el) => (el.onclick = () => setPage(el.dataset.page)));
+  updateSidebarCompact();
+}
+// Manual, persisted — not tied to page/workspace state. Auto-toggling the
+// sidebar on every navigation (the old behavior) was jarring; the user
+// decides once and it stays that way until they click it again.
+let sidebarCollapsed = false;
+try { sidebarCollapsed = localStorage.getItem("jc-sidebar-collapsed") === "1"; } catch (e) {}
+function updateSidebarCompact() {
+  const app = $(".app");
+  if (app) app.classList.toggle("sidebar-compact", sidebarCollapsed);
+  const btn = $("#sidebarToggleBtn");
+  if (btn) btn.title = sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar";
+}
+function toggleSidebarCollapsed() {
+  sidebarCollapsed = !sidebarCollapsed;
+  try { localStorage.setItem("jc-sidebar-collapsed", sidebarCollapsed ? "1" : "0"); } catch (e) {}
+  updateSidebarCompact();
 }
 function applyTheme(t) {
   document.documentElement.dataset.theme = t;
@@ -386,70 +409,405 @@ const LOCATION_OPTS = [
   ["ireland", "Ireland (other)"], ["sweden", "Sweden"], ["denmark", "Denmark"], ["poland", "Poland"],
   ["eu-other", "Rest of Europe"], ["remote-eu", "Remote (EU)"], ["remote-global", "Remote (Worldwide)"],
 ];
-function jobsFiltersHtml() {
-  const opt = (v, l, cur) => `<option value="${v}" ${v === cur ? "selected" : ""}>${l}</option>`;
-  const f = jobsFilters;
-  return `<div class="filters">
-    <select class="input" id="f-sort">${opt("for_you", "Sort: For you", f.sort)}${opt("score", "Sort: Match", f.sort)}${opt("date", "Sort: Newest", f.sort)}${opt("company", "Sort: Company", f.sort)}</select>
-    <select class="input" id="f-city">${opt("", "All locations", f.city)}${LOCATION_OPTS.map(([v, l]) => opt(v, l, f.city)).join("")}</select>
-    <select class="input" id="f-role">${opt("", "All roles", f.role_family)}${opt("ai_agentic", "AI / Agentic", f.role_family)}${opt("ai_ml", "AI / ML", f.role_family)}${opt("data_eng", "Data Eng", f.role_family)}${opt("swe", "SWE", f.role_family)}</select>
-    <select class="input" id="f-level">${opt("suitable", "Fits my level", f.level)}${opt("junior", "Junior", f.level)}${opt("all", "All levels", f.level)}</select>
-    <select class="input" id="f-sponsor">${opt("", "Any sponsorship", f.sponsorship)}${opt("likely_sponsors", "Likely sponsors", f.sponsorship)}${opt("silent", "Silent", f.sponsorship)}${opt("no_sponsorship", "No sponsorship", f.sponsorship)}</select>
-    <select class="input" id="f-startup">${opt("", "Startups + big", f.startup)}${opt("true", "Startups", f.startup)}${opt("false", "Big cos", f.startup)}</select>
-    <button class="btn btn-ghost btn-sm ${f.starred ? "is-done" : ""}" id="f-starred">${ico("star", "btn-ico")}<span>Starred</span></button>
-    <span class="grow"></span>
-    <div class="searchbox"><span class="ci">${ICONS.search}</span><input class="input" id="f-q" placeholder="Search title / company" value="${esc(f.q)}"></div>
-  </div>`;
+const CITY_LABEL = Object.fromEntries(LOCATION_OPTS);
+const ROLE_LABEL = { ai_agentic: "AI / Agentic", ai_ml: "AI / ML", data_eng: "Data Eng", swe: "Software Eng" };
+const JOBS_KW_CHIPS = ["Python", "Backend", "LLM", "RAG", "SQL", "Docker"];
+
+// All jobs fetched for the current level filter (the only server-side toggle
+// left); everything else — city, keywords, sponsorship, company type, posted,
+// search, saved-only, sort — is instant client-side filtering over this array,
+// same as the rest of this session's "make it feel instant" work.
+let jobsAll = [];
+const JOBS_FIRST_PAGE = 5;   // small first paint — see results immediately
+const JOBS_PAGE_SIZE = 24;   // bigger batches once scrolling (fewer fetch/render cycles)
+let jobsIO = null;
+let jobsView = {
+  allLevels: false, q: "", kw: [], cities: new Set(), spon: "", ctype: "", posted: "",
+  sort: "fy", starredOnly: false, expandedId: null, visibleCount: JOBS_FIRST_PAGE,
+};
+function daysAgo(iso) {
+  if (!iso) return null;
+  const d = (Date.now() - new Date(iso).getTime()) / 86400000;
+  return Number.isFinite(d) ? Math.max(0, Math.floor(d)) : null;
+}
+function jobsPasses(j, skip) {
+  const v = jobsView;
+  const hay = (j.title + " " + j.company + " " + (j.description || "") + " " + (j.match_reasons || []).join(" ")).toLowerCase();
+  const age = daysAgo(j.posted_at);
+  return (skip === "city" || !v.cities.size || v.cities.has(j.city))
+    && (!v.q.trim() || hay.includes(v.q.trim().toLowerCase()))
+    && v.kw.every((k) => hay.includes(k.toLowerCase()))
+    && (!v.spon || j.sponsorship === v.spon)
+    && (!v.ctype || (v.ctype === "startup") === !!j.is_startup)
+    && (!v.posted || age == null || (v.posted === "today" ? age === 0 : age <= 7))
+    && (!v.starredOnly || j.starred);
+}
+function computeJobsList() {
+  const scoreKey = jobsView.sort === "match" ? "match_score" : "for_you";
+  let list = jobsAll.filter((j) => jobsPasses(j));
+  list = [...list].sort(jobsView.sort === "new"
+    ? (a, b) => new Date(b.posted_at || 0) - new Date(a.posted_at || 0)
+    : (a, b) => (b[scoreKey] ?? b.match_score) - (a[scoreKey] ?? a.match_score));
+  return list;
+}
+function jobBlurb(description) {
+  const text = (description || "").replace(/\s+/g, " ").trim();
+  if (text.length <= 140) return text;
+  const cut = text.slice(0, 140);
+  const sp = cut.lastIndexOf(" ");
+  return (sp > 80 ? cut.slice(0, sp) : cut) + "…";
+}
+// Legal-entity suffixes strip cleanly off a company name before slugifying —
+// "Chapters Group AG" -> "chaptersgroup" guesses a real domain far more often
+// than "chaptersgroupag" does. Word-boundary match only: never eat a suffix
+// that's fused into the brand itself.
+const _CO_SUFFIX_RE = /\b(gmbh|ag|ltd|llc|inc|corp|corporation|co|sa|srl|bv|plc|oy|ab|nv|spa|pty|kg|sarl|kk)\.?\s*$/i;
+function companyAvatarHtml(company) {
+  const mono = esc((company || "?").trim().slice(0, 2).toUpperCase());
+  const stripped = (company || "").trim().replace(_CO_SUFFIX_RE, "").trim();
+  const domain = (stripped || company || "").toLowerCase().replace(/[^a-z0-9]+/g, "") + ".com";
+  return `<span class="jf-avatar"><span class="jf-avatar-mono">${mono}</span>` +
+    `<img class="jf-avatar-img" src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64" alt="" loading="lazy" onerror="this.remove()"></span>`;
+}
+function scoreBarHtml(pctVal) {
+  return `<div class="score-bar"><div class="score-bar-fill" style="width:${pctVal}%"></div></div>`;
+}
+function jobTagsHtml(j) {
+  const sponLabel = j.sponsorship === "likely_sponsors" ? "Sponsors visas" : j.sponsorship === "no_sponsorship" ? "No sponsorship" : "Visa not mentioned";
+  const tags = [
+    [label(j.seniority) + (j.req_years ? " · " + j.req_years + "y" : ""), "jobs"],
+    [CITY_LABEL[j.city] || label(j.city), "pin"],
+    [sponLabel, "globe", j.sponsorship === "likely_sponsors" ? "tag-sky" : ""],
+    [j.is_startup ? "Startup" : "Established", "building"],
+    [ROLE_LABEL[j.role_family] || label(j.role_family), "tag", "tag-accent"],
+  ];
+  return tags.map(([txt, ic, cls]) => `<span class="chip tag-chip ${cls || ""}">${ico(ic, "ico tag-ico")}${esc(txt)}</span>`).join("");
 }
 async function renderJobs() {
-  splitShell("Jobs", "Browse matches, sorted by what you tend to pursue.", `<button class="btn btn-ghost" id="reloadBtn">${ico("refresh", "btn-ico")}<span>Refresh</span></button>`, jobsFiltersHtml());
-  $("#reloadBtn").onclick = reload;
-  const bind = (id, key) => { const el = $("#" + id); if (el) el.onchange = () => { jobsFilters[key] = el.value; loadJobs(); }; };
-  bind("f-sort", "sort"); bind("f-city", "city"); bind("f-role", "role_family"); bind("f-level", "level"); bind("f-sponsor", "sponsorship"); bind("f-startup", "startup");
-  const q = $("#f-q"); let qt; q.oninput = () => { clearTimeout(qt); qt = setTimeout(() => { jobsFilters.q = q.value; loadJobs(); }, 220); };
-  $("#f-starred").onclick = () => { jobsFilters.starred = jobsFilters.starred ? "" : "1"; renderJobs(); };
-  await loadJobs();
+  $("#view").innerHTML = `
+    <div class="pagehead"><div class="pagehead-l"><h1 class="pagetitle">Jobs</h1><p class="pagesub" id="jfSummary">Loading…</p></div>
+      <div class="pagehead-r"><button class="btn btn-ghost" id="reloadBtn">${ico("refresh", "btn-ico")}<span>Refresh</span></button></div></div>
+    <div class="jf-layout">
+      <aside class="jf-side" id="jfSide"></aside>
+      <div class="jf-feed">
+        <div class="jf-feedtop">
+          <div class="seg" id="jfTabs"></div>
+          <span class="grow"></span>
+          <div class="jf-sort"><span class="jf-sort-lbl">Sort</span><div class="seg" id="jfSort"></div></div>
+        </div>
+        <div class="jf-hint" id="jfHint"></div>
+        <div id="jfCards"></div>
+      </div>
+    </div>`;
+  $("#reloadBtn").onclick = () => loadJobsAll(true);
+  await loadJobsAll(false);
 }
-async function loadJobs() {
-  $("#list").innerHTML = skeletons();
-  const p = new URLSearchParams();
-  const f = jobsFilters;
-  const map = { city: "city", role_family: "role_family", level: "level", sponsorship: "sponsorship", startup: "startup", sort: "sort", q: "q", starred: "starred" };
-  for (const k in map) if (f[k]) p.set(map[k], f[k]);
-  const data = await api("/api/jobs?" + p.toString());
-  listCache = data.jobs.map((j) => j.id);
-  $("#list").innerHTML = data.jobs.length ? data.jobs.map((j) => cardHtml(j, { forYou: f.sort === "for_you" })).join("")
-    : emptyState("search", "No jobs match", "Click <b>Harvest jobs</b> or widen your filters.");
-  wireCards();
-  if (selectedId && listCache.includes(selectedId)) renderDetail(selectedId); else clearDetail("jobs");
+async function loadJobsAll(forceToast) {
+  $("#jfCards").innerHTML = skeletons();
+  const [data, prefs] = await Promise.all([
+    api("/api/jobs?level=" + (jobsView.allLevels ? "all" : "suitable")),
+    api("/api/preferences").catch(() => null),
+  ]);
+  jobsAll = data.jobs;
+  jobsPrefs = prefs && prefs.preferences;
+  jobsView.visibleCount = JOBS_FIRST_PAGE;
+  // Arriving here from Overview or the command palette with a specific job in
+  // mind (selectedId already set) opens straight to it, expanded and in view.
+  const preselect = selectedId && jobsAll.some((j) => j.id === selectedId) ? selectedId : null;
+  jobsView.expandedId = preselect;
+  renderJobsFeed();
+  if (preselect) {
+    const card = $(`.card[data-id="${preselect}"]`);
+    if (card) card.scrollIntoView({ block: "center" });
+    const j = jobsAll.find((x) => x.id === preselect);
+    if (j) { api("/api/jobs/" + preselect).then((full) => { j._learned = full.learned_reasons || []; if (jobsView.expandedId === preselect) renderJobsFeed(); }).catch(() => {}); }
+  }
+  if (forceToast) toast("Refreshed", "ok");
+}
+function jfPrefBoxHtml() {
+  const p = jobsPrefs || {};
+  const chips = [];
+  (p.titles || []).slice(0, 3).forEach((t) => chips.push([t, "jobs"]));
+  if ((p.titles || []).length > 3) chips.push(["+" + (p.titles.length - 3) + " titles", "jobs"]);
+  (p.locations || []).slice(0, 2).forEach((l) => chips.push([CITY_LABEL[l] || label(l), "pin"]));
+  if ((p.locations || []).length > 2) chips.push(["+" + (p.locations.length - 2) + " places", "pin"]);
+  chips.push([(p.language ? label(p.language) : "Match posting") + " letters", "lang"]);
+  return `<div class="jf-prefbox">
+    <div class="jf-prefhead"><span>Your preferences</span><button class="linklike" id="jfEditPrefs">Edit</button></div>
+    <div class="jf-chiprow">${chips.map(([t, ic]) => `<span class="chip pref-chip">${ico(ic, "ico tag-ico")}${esc(t)}</span>`).join("")}</div>
+  </div>`;
+}
+function jfSideHtml() {
+  const v = jobsView;
+  const avail = jobsAll;
+  const cityCounts = {};
+  avail.forEach((j) => { if (jobsPasses(j, "city")) cityCounts[j.city] = (cityCounts[j.city] || 0) + 1; });
+  const cityKeys = Object.keys(cityCounts).sort((a, b) => cityCounts[b] - cityCounts[a]);
+  const cityRows = cityKeys.map((c) => {
+    const on = v.cities.has(c);
+    return `<button class="jf-cityrow ${on ? "on" : ""}" data-city="${esc(c)}"><span class="jf-checkbox">${on ? ico("check") : ""}</span><span class="jf-citylbl">${esc(CITY_LABEL[c] || label(c))}</span><span class="jf-cityn">${cityCounts[c]}</span></button>`;
+  }).join("");
+  const kwChips = JOBS_KW_CHIPS.map((k) => `<button class="chip filter-chip ${v.kw.includes(k) ? "on" : ""}" data-kw="${esc(k)}">${esc(k)}</button>`).join("");
+  const pill = (val, cur, label_) => `<button class="chip filter-chip ${cur === val ? "on" : ""}" data-pillval="${esc(val)}">${esc(label_)}</button>`;
+  const hasFilters = !!(v.cities.size || v.kw.length || v.q || v.spon || v.ctype || v.posted || v.allLevels);
+  return `${jfPrefBoxHtml()}
+    <div class="jf-filterbox">
+      <div class="jf-fgroup">
+        <div class="jf-flabel">Keywords</div>
+        <div class="searchbox jf-kwsearch"><span class="ci">${ICONS.search}</span><input class="input" id="jfQ" placeholder="Title, company, skill" value="${esc(v.q)}"></div>
+        <div class="jf-chiprow" id="jfKwChips">${kwChips}</div>
+      </div>
+      <div class="jf-fgroup">
+        <div class="jf-flabel">City</div>
+        <div class="jf-citylist">${cityRows || `<div class="jf-noneyet">No jobs harvested yet.</div>`}</div>
+      </div>
+      <div class="jf-fgroup" data-pillgroup="spon">
+        <div class="jf-flabel">Visa sponsorship</div>
+        <div class="jf-chiprow">${pill("likely_sponsors", v.spon, "Likely")}${pill("silent", v.spon, "Not mentioned")}${pill("no_sponsorship", v.spon, "No")}</div>
+      </div>
+      <div class="jf-fgroup" data-pillgroup="ctype">
+        <div class="jf-flabel">Company</div>
+        <div class="jf-chiprow">${pill("startup", v.ctype, "Startup")}${pill("est", v.ctype, "Established")}</div>
+      </div>
+      <div class="jf-fgroup" data-pillgroup="posted">
+        <div class="jf-flabel">Posted</div>
+        <div class="jf-chiprow">${pill("today", v.posted, "Today")}${pill("week", v.posted, "This week")}</div>
+      </div>
+      <button class="jf-switch-row" id="jfLevelToggle"><span class="jf-switch ${v.allLevels ? "on" : ""}"><span class="jf-switch-knob"></span></span>Include senior roles</button>
+      ${hasFilters ? `<button class="linklike" id="jfClear">Clear filters</button>` : ""}
+    </div>`;
+}
+function jobCardHtml(j, scoreKey) {
+  const expanded = jobsView.expandedId === j.id;
+  const shown = pct(j[scoreKey] ?? j.match_score);
+  return `<article class="card jf-card ${expanded ? "expanded" : ""}" data-id="${j.id}">
+    <div class="jf-cardtop" data-toggle="${j.id}">
+      ${companyAvatarHtml(j.company)}
+      <div class="jf-cardmain">
+        <div class="jf-cardtitle">${esc(j.title)}</div>
+        <div class="jf-cardco">${esc(j.company)}</div>
+        <div class="jf-cardblurb">${esc(jobBlurb(j.description))}</div>
+        <div class="jf-chiprow">${jobTagsHtml(j)}</div>
+      </div>
+      <div class="jf-scorewrap"><div class="jf-scorelbl">${scoreKey === "match_score" ? "Match" : "For you"}</div><div class="jf-scorenum">${shown}<span>/100</span></div>${scoreBarHtml(shown)}</div>
+    </div>
+    <div class="jf-cardactions">
+      <button class="btn btn-ghost btn-sm star-btn ${j.starred ? "on" : ""}" data-star="${j.id}">${ico("star", "btn-ico")}<span>${j.starred ? "Saved" : "Save"}</span></button>
+      <span class="jf-posted">${ico("clock", "ico tag-ico")}${ago(j.posted_at)}</span>
+      <span class="grow"></span>
+      <button class="btn btn-ghost btn-sm" data-dismiss="${j.id}">${ico("x", "btn-ico")}<span>Not for me</span></button>
+      <button class="btn btn-primary btn-sm" data-queue="${j.id}">Queue for Claude</button>
+    </div>
+    ${expanded ? jfExpandHtml(j) : ""}
+  </article>`;
+}
+function ago(iso) {
+  const d = daysAgo(iso);
+  if (d == null) return "Unknown date";
+  return d === 0 ? "Posted today" : d === 1 ? "Posted yesterday" : `Posted ${d}d ago`;
+}
+function jfExpandHtml(j) {
+  const why = (j.match_reasons || []).map((r) => `<div class="jf-why-row">${esc(r)}</div>`).join("") || `<div class="jf-why-row">No reasons recorded.</div>`;
+  const learned = j._learned == null
+    ? `<div class="jf-why-row">${ico("refresh", "ico spin")} Loading…</div>`
+    : (j._learned.length ? j._learned.map((r) => `<div class="jf-learn-row"><span class="jf-learn-w ${r.weight >= 0 ? "pos" : "neg"}">${r.weight >= 0 ? "+" : ""}${r.weight.toFixed(2)}</span><span>${esc(r.label)}: ${esc(label(String(r.value)))}</span></div>`).join("")
+      : `<div class="jf-why-row">Not enough signal yet.</div>`);
+  return `<div class="jf-expand">
+    <div class="jf-expand-col"><div class="jf-expand-h">Why it matched · ${pct(j.match_score)}/100</div>${why}</div>
+    <div class="jf-expand-col"><div class="jf-expand-h">Why it's ranked here${j.for_you != null ? " · " + pct(j.for_you) + " for you" : ""}</div>${learned}</div>
+    <a class="jf-openlink" href="${esc(j.apply_url || "#")}" target="_blank" rel="noopener">Open job page ↗</a>
+  </div>`;
+}
+function renderJobsFeed() {
+  const list = computeJobsList();
+  listCache = list.map((j) => j.id);
+  const scoreKey = jobsView.sort === "match" ? "match_score" : "for_you";
+  // A job deep-linked from Overview/palette must land in view even if it's
+  // past the current page — widen the page rather than leave it unrendered.
+  if (jobsView.expandedId) {
+    const idx = list.findIndex((j) => j.id === jobsView.expandedId);
+    if (idx >= 0 && idx >= jobsView.visibleCount) jobsView.visibleCount = idx + 1;
+  }
+  const shown = list.slice(0, jobsView.visibleCount || JOBS_FIRST_PAGE);
+  const hasMore = shown.length < list.length;
+  $("#jfCards").innerHTML = list.length
+    ? shown.map((j) => jobCardHtml(j, scoreKey)).join("") + (hasMore ? `<div class="jf-sentinel" id="jfSentinel"></div>` : "")
+    : emptyState("search", "Nothing matches these filters", "Widen your filters or clear them to see everything.");
+  wireJobsCards();
+  wireJobsLazyLoad(hasMore);
+  refreshJobsChrome();
+}
+// Infinite scroll: the feed lives inside .jf-layout's own scroll container
+// (not the window), so the observer's root has to be pointed at it explicitly.
+function wireJobsLazyLoad(hasMore) {
+  if (jobsIO) { jobsIO.disconnect(); jobsIO = null; }
+  if (!hasMore) return;
+  const sentinel = $("#jfSentinel");
+  const root = $(".jf-layout");
+  if (!sentinel || !root) return;
+  jobsIO = new IntersectionObserver((entries) => {
+    if (entries.some((e) => e.isIntersecting)) {
+      jobsView.visibleCount = (jobsView.visibleCount || JOBS_PAGE_SIZE) + JOBS_PAGE_SIZE;
+      renderJobsFeed();
+    }
+  }, { root, rootMargin: "600px" });
+  jobsIO.observe(sentinel);
+}
+// Everything except the card list itself (sidebar filters, tabs, sort, the
+// summary line) — split out so a single dismiss/queue can update counts
+// without touching #jfCards and cancelling the card's own fade-out animation.
+function refreshJobsChrome() {
+  const tabsOn = jobsView.starredOnly;
+  const allCount = jobsAll.filter((j) => jobsPasses(j)).length;
+  $("#jfSide").innerHTML = jfSideHtml();
+  $("#jfTabs").innerHTML = `
+    <button class="${!tabsOn ? "on" : ""}" data-tab="all">All matches</button>
+    <button class="${tabsOn ? "on" : ""}" data-tab="saved">Saved${jobsAll.filter((j) => j.starred).length ? ` <span class="seg-n">${jobsAll.filter((j) => j.starred).length}</span>` : ""}</button>`;
+  $("#jfSort").innerHTML = [["fy", "For you"], ["match", "Match"], ["new", "Newest"]]
+    .map(([k, l]) => `<button class="${jobsView.sort === k ? "on" : ""}" data-sort="${k}">${l}</button>`).join("");
+  $("#jfHint").textContent = { fy: "For you blends the match score with what you tend to queue, save or dismiss.", match: "Match only: how well the posting fits your CV and preferences.", new: "Newest postings first." }[jobsView.sort];
+  $("#jfSummary").textContent = `${allCount} at your level · matched from ${jobsAll.length} harvested`;
+  wireJobsSide();
+  wireJobsTop();
+}
+function refilterJobs() { jobsView.visibleCount = JOBS_FIRST_PAGE; renderJobsFeed(); }
+function wireJobsSide() {
+  const host = $("#jfSide");
+  $("#jfQ", host).oninput = (e) => { jobsView.q = e.target.value; refilterJobs(); $("#jfQ").focus(); $("#jfQ").selectionStart = $("#jfQ").value.length; };
+  $$("[data-kw]", host).forEach((b) => (b.onclick = () => {
+    const k = b.dataset.kw; jobsView.kw = jobsView.kw.includes(k) ? jobsView.kw.filter((x) => x !== k) : [...jobsView.kw, k]; refilterJobs();
+  }));
+  $$(".jf-cityrow", host).forEach((b) => (b.onclick = () => {
+    const c = b.dataset.city; if (jobsView.cities.has(c)) jobsView.cities.delete(c); else jobsView.cities.add(c); refilterJobs();
+  }));
+  $$("[data-pillval]", host).forEach((b) => (b.onclick = () => {
+    const group = b.closest("[data-pillgroup]").dataset.pillgroup;
+    const key = group === "spon" ? "spon" : group === "ctype" ? "ctype" : "posted";
+    jobsView[key] = jobsView[key] === b.dataset.pillval ? "" : b.dataset.pillval;
+    refilterJobs();
+  }));
+  const lvl = $("#jfLevelToggle", host); if (lvl) lvl.onclick = () => { jobsView.allLevels = !jobsView.allLevels; loadJobsAll(false); };
+  const clr = $("#jfClear", host); if (clr) clr.onclick = () => { jobsView = { ...jobsView, q: "", kw: [], cities: new Set(), spon: "", ctype: "", posted: "", allLevels: false }; loadJobsAll(false); };
+  const editP = $("#jfEditPrefs", host); if (editP) editP.onclick = () => setPage("profile");
+}
+function wireJobsTop() {
+  $$("#jfTabs [data-tab]").forEach((b) => (b.onclick = () => { jobsView.starredOnly = b.dataset.tab === "saved"; refilterJobs(); }));
+  $$("#jfSort [data-sort]").forEach((b) => (b.onclick = () => { jobsView.sort = b.dataset.sort; refilterJobs(); }));
+}
+function wireJobsCards() {
+  const host = $("#jfCards");
+  $$("[data-toggle]", host).forEach((el) => (el.onclick = () => toggleJobExpand(el.dataset.toggle)));
+  $$("[data-star]", host).forEach((b) => (b.onclick = (e) => { e.stopPropagation(); toggleStarCard(b.dataset.star); }));
+  $$("[data-dismiss]", host).forEach((b) => (b.onclick = (e) => { e.stopPropagation(); dismissJobCard(b.dataset.dismiss); }));
+  $$("[data-queue]", host).forEach((b) => (b.onclick = (e) => { e.stopPropagation(); queueJobCard(b.dataset.queue); }));
+}
+async function toggleJobExpand(id) {
+  jobsView.expandedId = jobsView.expandedId === id ? null : id;
+  selectedId = jobsView.expandedId;
+  if (jobsView.expandedId) {
+    renderJobsFeed();
+    const j = jobsAll.find((x) => x.id === id);
+    if (j && j._learned == null) {
+      try {
+        const full = await api("/api/jobs/" + id);
+        j._learned = full.learned_reasons || [];
+      } catch (e) { j._learned = []; }
+      if (jobsView.expandedId === id) renderJobsFeed();
+    }
+  } else {
+    renderJobsFeed();
+  }
+}
+async function toggleStarCard(id) {
+  const j = jobsAll.find((x) => x.id === id); if (!j) return;
+  const next = !j.starred;
+  j.starred = next;
+  renderJobsFeed();
+  try { await api(`/api/jobs/${id}/star`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ starred: next }) }); toast(next ? "Saved" : "Unsaved", "ok"); }
+  catch (e) { j.starred = !next; renderJobsFeed(); toast("Couldn't update", "err"); }
+}
+async function dismissJobCard(id) {
+  const j = jobsAll.find((x) => x.id === id);
+  jobsAll = jobsAll.filter((x) => x.id !== id);
+  removeCard(id);
+  refreshCounts();
+  try { await api(`/api/jobs/${id}/dismiss`, { method: "POST" }); toast(`Job dismissed${j ? " · " + j.company : ""}`, "info"); }
+  catch (e) { toast("Couldn't dismiss this job", "err"); loadJobsAll(false); return; }
+  if (!jobsAll.length) loadJobsAll(false); else refreshJobsChrome();
+}
+async function queueJobCard(id) {
+  const j = jobsAll.find((x) => x.id === id);
+  jobsAll = jobsAll.filter((x) => x.id !== id);
+  removeCard(id);
+  refreshCounts();
+  try { await api(`/api/jobs/${id}/queue`, { method: "POST" }); toast(`Queued for Claude${j ? " · " + j.company : ""}`, "ok"); }
+  catch (e) { toast("Couldn't queue this job", "err"); loadJobsAll(false); return; }
+  if (!jobsAll.length) loadJobsAll(false); else refreshJobsChrome();
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Pages: Queue + Applications (grouped)
    ═══════════════════════════════════════════════════════════════════════════ */
 async function renderGrouped(kind) {
-  const isQueue = kind === "queue";
-  const title = isQueue ? "Queue" : "Applications";
-  const sub = isQueue ? "Jobs handed to Claude, materials to review, and an assistant for application questions." : "Everything you've applied to and where it stands.";
-  const actions = isQueue ? `<button class="btn btn-ghost" id="qaBtn">${ico("chat", "btn-ico")}<span>Q&amp;A</span></button><button class="btn btn-ghost" id="reloadBtn">${ico("refresh", "btn-ico")}<span>Refresh</span></button>`
-    : `<a class="btn btn-ghost" href="/api/applications.csv" download="applications.csv">${ico("download", "btn-ico")}<span>CSV</span></a><button class="btn btn-ghost" id="reloadBtn">${ico("refresh", "btn-ico")}<span>Refresh</span></button>`;
-  if (isQueue) {
-    splitShell(title, sub, actions);
-    $("#reloadBtn").onclick = reload;
-    $("#qaBtn").onclick = () => { selectedId = null; $$(".card").forEach((el) => el.classList.remove("active")); renderQAChat(); };
-    await loadGrouped(QUEUE_GROUPS, QUEUE_EMPTY_ARGS);
-  } else {
-    appsCompanyFilter = null;
-    splitShell(title, sub, actions, `<div class="apps-overview" id="appsOverview"></div>`);
-    $("#reloadBtn").onclick = reload;
-    await loadApplications();
-  }
+  splitShell("Queue", "Jobs handed to Claude, materials to review, and an assistant for application questions.",
+    `<button class="btn btn-ghost" id="qaBtn">${ico("chat", "btn-ico")}<span>Q&amp;A</span></button><button class="btn btn-ghost" id="reloadBtn">${ico("refresh", "btn-ico")}<span>Refresh</span></button>`);
+  $("#reloadBtn").onclick = reload;
+  $("#qaBtn").onclick = () => { selectedId = null; $$(".card").forEach((el) => el.classList.remove("active")); renderQAChat(); };
+  await loadGrouped(QUEUE_GROUPS, QUEUE_EMPTY_ARGS);
 }
 
-/* ── Applications overview: ring cards per company + company filter ─────── */
+/* ── Applications: one merged view — at-a-glance, company bubbles, and the
+   full learned-preference insights, all in the same scroll. No tabs, no
+   separate Insights page. Drilling into a company (click a bubble) swaps
+   this out for the familiar list+detail history view. ─────────────────── */
 let appsData = null;
+let appsInsights = null;
 let appsCompanyFilter = null;
-const APP_STATUS_TEXT = { applied: "applied", interview: "interview", offer: "offer", rejected: "closed" };
+
+// Shared by the at-a-glance strip and the full insights section below it.
+function insightsTilesHtml(ins) {
+  const m = ins.model;
+  return `<div class="grid tiles" style="margin-bottom:16px">
+    <div class="tile"><div class="t-top"><span class="t-label">Decisions</span>${ico("bolt")}</div><div class="t-num">${ins.totals.decided}</div><div class="t-foot">${ins.totals.pursued} pursued · ${ins.totals.rejected} passed</div></div>
+    <div class="tile"><div class="t-top"><span class="t-label">Pursue rate</span>${ico("check")}</div><div class="t-num ok">${ins.totals.pursue_rate != null ? Math.round(ins.totals.pursue_rate * 100) + "%" : "—"}</div><div class="t-foot">of decided jobs</div></div>
+    <div class="tile"><div class="t-top"><span class="t-label">Signals</span>${ico("brain")}</div><div class="t-num accent">${m.n_features}</div><div class="t-foot">feature weights</div></div>
+    <div class="tile"><div class="t-top"><span class="t-label">Starred</span>${ico("star")}</div><div class="t-num">${ins.totals.starred}</div><div class="t-foot">your shortlist</div></div>
+  </div>`;
+}
+function insightsBannerHtml(ins) {
+  const m = ins.model;
+  return m.ready
+    ? `<div class="model-banner ready">${ico("check")}<div class="mb-txt"><b>Model active.</b> Learned from ${m.pos} pursued and ${m.neg} rejected jobs across ${m.n_features} signals. The <b>For you</b> sort now blends this with base relevance.</div></div>`
+    : `<div class="model-banner">${ico("brain")}<div class="mb-txt"><b>Still learning.</b> It has ${m.pos} pursued and ${m.neg} rejected so far. <b>Dismiss</b> a few jobs you're not into (and star ones you love) so it can learn what to avoid, not just what you like.</div></div>`;
+}
+// The affinity panels + activity chart — everything from the old standalone
+// Insights page, minus the tiles (already shown once, at the top).
+function insightsPanelsHtml(ins) {
+  const m = ins.model;
+  const allW = [];
+  ["role", "city", "company", "kw", "seniority", "sponsorship", "startup"].forEach((ns) => {
+    (ins.likes[ns] || []).forEach((x) => allW.push(Math.abs(x.weight)));
+    (ins.dislikes[ns] || []).forEach((x) => allW.push(Math.abs(x.weight)));
+  });
+  const maxW = Math.max(0.5, ...allW);
+  const likePanel = (title, ns) => `<div class="panel"><h3>${title}</h3>${affRows(ins.likes[ns] || [], maxW)}</div>`;
+  const maxN = ins.timeline.length ? Math.max(1, ...ins.timeline.map((d) => d.n)) : 1;
+  const spark = ins.timeline.length
+    ? `<div class="spark-wrap"><div class="spark">${ins.timeline.map((d) => `<div class="spark-col" title="${d.day}: ${d.n}"><span class="spark-n">${d.n || ""}</span><span class="bar" style="height:${(d.n / maxN) * 100}%"></span></div>`).join("")}</div></div>`
+    : `<div style="color:var(--faint);font-size:12.5px">No activity logged yet.</div>`;
+  return `
+    <div class="grid aff-grid" style="margin-bottom:16px">
+      ${likePanel("Roles", "role")}
+      ${likePanel("Locations", "city")}
+      ${likePanel("Keywords", "kw")}
+      ${likePanel("Companies", "company")}
+    </div>
+    ${m.ready ? `<div class="grid aff-grid" style="margin-bottom:16px">
+      <div class="panel"><h3>Passed on</h3>${affRows([...(ins.dislikes.kw || []), ...(ins.dislikes.role || []), ...(ins.dislikes.city || [])].sort((a, b) => a.weight - b.weight).slice(0, 8), maxW)}</div>
+      <div class="panel"><h3>Level &amp; type</h3>${affRows([...(ins.likes.seniority || []), ...(ins.likes.startup || []), ...(ins.likes.sponsorship || [])], maxW)}</div>
+    </div>` : ""}
+    <div class="panel"><h3>Applications <span class="pill muted">30d</span></h3>${spark}</div>`;
+}
 
 function computeApplicationCompanies(data) {
   const byCo = new Map();
@@ -463,69 +821,85 @@ function computeApplicationCompanies(data) {
   }
   return [...byCo.values()].sort((a, b) => (b.items.length - a.items.length) || a.company.localeCompare(b.company));
 }
-function ringGradient(counts, total) {
-  const order = ["applied", "interview", "offer", "rejected"];
-  const nonZero = order.filter((s) => counts[s] > 0);
-  if (!total || !nonZero.length) return "background: var(--surface-3)";
-  if (nonZero.length === 1) return `background: ${STATUS_COLOR[nonZero[0]]}`;
-  const gap = 6; // degrees of surface-colored gap between adjacent segments
-  let angle = 0;
-  const stops = [];
-  nonZero.forEach((s, i) => {
-    const segDeg = (counts[s] / total) * 360;
-    const start = angle, end = angle + segDeg;
-    if (i > 0) stops.push(`var(--surface) ${(start - gap / 2).toFixed(2)}deg ${(start + gap / 2).toFixed(2)}deg`);
-    const gs = i === 0 ? start : start + gap / 2;
-    const ge = i === nonZero.length - 1 ? end : end - gap / 2;
-    stops.push(`${STATUS_COLOR[s]} ${gs.toFixed(2)}deg ${ge.toFixed(2)}deg`);
-    angle = end;
-  });
-  return `background: conic-gradient(${stops.join(", ")})`;
+function companyBubbleHtml(c) {
+  const tags = [
+    c.counts.interview ? `<span class="co-tag interview">${c.counts.interview} interviewing</span>` : "",
+    c.counts.offer ? `<span class="co-tag offer">${c.counts.offer} offer</span>` : "",
+  ].filter(Boolean).join("");
+  return `<button class="co-bubble" data-co="${esc(c.company)}">
+    ${companyAvatarHtml(c.company)}
+    <div class="co-bubble-name">${esc(c.company)}</div>
+    <div class="co-bubble-n">${c.items.length} application${c.items.length === 1 ? "" : "s"}</div>
+    ${tags ? `<div class="co-bubble-tags">${tags}</div>` : ""}
+  </button>`;
 }
+async function renderApplications() {
+  $("#view").innerHTML = `
+    <div class="pagehead">
+      <div class="pagehead-l"><h1 class="pagetitle">Applications</h1><p class="pagesub">Where things stand, by company — and what the model has learned.</p></div>
+      <div class="pagehead-r">
+        <a class="btn btn-ghost" href="/api/applications.csv" download="applications.csv">${ico("download", "btn-ico")}<span>CSV</span></a>
+        <button class="btn btn-ghost" id="reloadBtn">${ico("refresh", "btn-ico")}<span>Refresh</span></button>
+      </div>
+    </div>
+    <div class="apps-wrap" id="appsBodyWrap"></div>`;
+  $("#reloadBtn").onclick = reload;
+  await loadApplications();
+}
+async function loadApplications() {
+  const wrap = $("#appsBodyWrap"); if (!wrap) return;
+  wrap.innerHTML = `<div class="scroll pad narrowpad">${skeletons(3)}</div>`;
+  const [apps, ins] = await Promise.all([api("/api/applications"), api("/api/insights").catch(() => null)]);
+  appsData = apps;
+  appsInsights = ins;
+  if (appsCompanyFilter && !computeApplicationCompanies(appsData).some((c) => c.company === appsCompanyFilter)) appsCompanyFilter = null;
+  if (appsCompanyFilter) renderAppsDrill(); else renderAppsOverview();
+}
+// Default landing view: Companies (bubbles) on the left at 70% width, its
+// own scroll; Insights (banner, at-a-glance, affinity panels, activity) on
+// the right at 30%, no tabs. Full per-job details only show up once you
+// drill into a company.
 function renderAppsOverview() {
-  const host = $("#appsOverview"); if (!host || !appsData) return;
+  const wrap = $("#appsBodyWrap"); if (!wrap || !appsData) return;
   const companies = computeApplicationCompanies(appsData);
-  const totalAll = companies.reduce((s, c) => s + c.items.length, 0);
-  if (!companies.length) { host.innerHTML = ""; return; }
-  const chipsHtml = [
-    `<button class="apps-chip ${appsCompanyFilter === null ? "active" : ""}" data-co="">All<span class="n">${totalAll}</span></button>`,
-    ...companies.map((c) => `<button class="apps-chip ${appsCompanyFilter === c.company ? "active" : ""}" data-co="${esc(c.company)}">${esc(c.company)}<span class="n">${c.items.length}</span></button>`),
-  ].join("");
-  const cardsHtml = companies.map((c) => {
-    const rows = ["applied", "interview", "offer", "rejected"].filter((s) => c.counts[s] > 0).map((s) =>
-      `<div class="bd-row"><span class="dotc" style="background:${STATUS_COLOR[s]}"></span>${c.counts[s]} ${APP_STATUS_TEXT[s]}</div>`).join("");
-    return `<div class="apps-card ${appsCompanyFilter === c.company ? "active" : ""}" data-co="${esc(c.company)}">
-      <div class="apps-ring" style="${ringGradient(c.counts, c.items.length)}"><span class="apps-ring-num">${c.items.length}</span></div>
-      <div class="apps-card-name">${esc(c.company)}</div>
-      <div class="apps-card-breakdown">${rows}</div>
-    </div>`;
-  }).join("");
-  host.innerHTML = `<div class="apps-chips">${chipsHtml}</div><div class="apps-grid">${cardsHtml}</div>`;
-  $$("[data-co]", host).forEach((el) => (el.onclick = () => {
-    const co = el.dataset.co || null; // "" (the All chip) becomes null
-    appsCompanyFilter = appsCompanyFilter === co ? null : co; // click the active company again to clear back to All
-    renderAppsOverview(); renderAppsList();
-  }));
+  const bubblesHtml = companies.length
+    ? `<div class="co-bubbles">${companies.map(companyBubbleHtml).join("")}</div>`
+    : emptyState("applications", "No applications yet", "Queue a job for Claude, or mark one as applied, and it lands here.");
+  wrap.innerHTML = `<div class="apps-split">
+    <div class="apps-col-companies scroll pad">
+      <div class="apps-section-h apps-section-h--first">Companies</div>
+      ${bubblesHtml}
+    </div>
+    <div class="apps-col-insights scroll pad">
+      ${appsInsights ? insightsBannerHtml(appsInsights) : ""}
+      ${appsInsights ? `<div class="apps-section-h apps-section-h--first">At a glance</div>${insightsTilesHtml(appsInsights)}` : ""}
+      ${appsInsights ? insightsPanelsHtml(appsInsights) : ""}
+    </div>
+  </div>`;
+  $$("[data-co]", wrap).forEach((el) => (el.onclick = () => { appsCompanyFilter = el.dataset.co; selectedId = null; renderAppsDrill(); }));
+}
+// Drill-in: the familiar list+detail split, scoped to one company — this is
+// where the full history (cover letter, CV variant, status) lives on demand.
+function renderAppsDrill() {
+  const wrap = $("#appsBodyWrap"); if (!wrap) return;
+  wrap.innerHTML = `
+    <div class="apps-drillbar"><button class="linklike" id="appsBack">← All companies</button><span class="apps-drillco">${esc(appsCompanyFilter)}</span></div>
+    <div class="split"><section id="list" class="list"></section><section id="detail" class="detail"></section></div>`;
+  $("#appsBack").onclick = () => { appsCompanyFilter = null; selectedId = null; renderAppsOverview(); };
+  renderAppsList();
 }
 function renderAppsList() {
   const list = $("#list"); if (!list || !appsData) return;
   const parts = []; listCache = [];
   for (const [status, heading, iconName] of APP_GROUPS) {
-    const items = (appsData.groups[status] || []).filter((j) => !appsCompanyFilter || j.company === appsCompanyFilter);
+    const items = (appsData.groups[status] || []).filter((j) => j.company === appsCompanyFilter);
     if (!items.length) continue;
     parts.push(`<div class="group-label">${ico(iconName)} ${esc(heading)} <span class="n">${items.length}</span></div>`);
     items.forEach((j) => { listCache.push(j.id); parts.push(cardHtml(j)); });
   }
-  list.innerHTML = parts.length ? parts.join("")
-    : emptyState("applications", appsCompanyFilter ? `No applications for ${appsCompanyFilter}` : "No applications yet", "Mark a job as applied and it lands here.");
+  list.innerHTML = parts.length ? parts.join("") : emptyState("applications", `No applications for ${appsCompanyFilter}`, "");
   wireCards();
   if (selectedId && listCache.includes(selectedId)) renderDetail(selectedId); else clearDetail("applications");
-}
-async function loadApplications() {
-  $("#list").innerHTML = skeletons(4);
-  appsData = await api("/api/applications");
-  renderAppsOverview();
-  renderAppsList();
 }
 
 /* ── Application Q&A chat (reusable: Queue page + Apply Workspace drawer) ─ */
@@ -719,11 +1093,58 @@ function greeting() {
   const t = h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
   return config.owner_name ? `${t}, ${config.owner_name.split(" ")[0]}` : t;
 }
+
+/* ── "This week" applications strip (Overview header, beside Harvest) ──── */
+const WS_DOW = ["M", "T", "W", "T", "F", "S", "S"];
+function wsLocalKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function wsWeekDays() {
+  const now = new Date();
+  const dow = (now.getDay() + 6) % 7; // Monday = 0 .. Sunday = 6
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow);
+  return Array.from({ length: 7 }, (_, i) => new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i));
+}
+async function loadWeekStrip() {
+  const host = $("#weekStrip"); if (!host) return;
+  let applied = [];
+  try { applied = (await api("/api/applications/week")).applied || []; } catch (e) {}
+  const host2 = $("#weekStrip"); if (!host2) return;   // page may have moved on while this awaited
+  const days = wsWeekDays();
+  const todayKey = wsLocalKey(new Date());
+  const counts = new Map(days.map((d) => [wsLocalKey(d), 0]));
+  applied.forEach((ts) => {
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return;
+    const key = wsLocalKey(d);
+    if (counts.has(key)) counts.set(key, counts.get(key) + 1);
+  });
+  const cols = days.map((d, i) => {
+    const key = wsLocalKey(d);
+    const n = counts.get(key) || 0;
+    const state = key === todayKey ? "today" : key < todayKey ? "past" : "future";
+    const shown = state === "future" ? 0 : Math.min(6, n);
+    const ticks = Array.from({ length: shown }, () => `<span class="ws-tick"></span>`).join("");
+    const dow = d.toLocaleDateString(undefined, { weekday: "short" });
+    const tip = n ? `${dow} ${d.getDate()} · ${n} application${n === 1 ? "" : "s"}` : "No applications";
+    return `<div class="ws-col ws-${state}" title="${esc(tip)}">
+      <div class="ws-ticks">${ticks}</div>
+      <div class="ws-lbl">${WS_DOW[i]}</div>
+    </div>`;
+  }).join("");
+  host2.innerHTML = `<div class="ws-label">This<br>week</div><div class="ws-cols">${cols}</div>`;
+}
 async function renderOverview() {
   $("#view").innerHTML = `<div class="pagehead"><div class="pagehead-l"><h1 class="pagetitle">Overview</h1><p class="pagesub">Your job hunt at a glance.</p></div>
-    <div class="pagehead-r"><button class="btn btn-ghost" id="reloadBtn">${ico("refresh", "btn-ico")}<span>Refresh</span></button></div></div>
+    <div class="pagehead-r">
+      <div class="week-strip" id="weekStrip" title="Applications sent this week"></div>
+      <button class="btn btn-ghost btn-sm harvest-trigger" id="ovHarvestBtn" data-label="Harvest">${ico("sparkle", "btn-ico")}<span class="btn-txt">Harvest</span></button>
+      <button class="btn btn-ghost" id="reloadBtn">${ico("refresh", "btn-ico")}<span>Refresh</span></button>
+    </div></div>
     <div class="scroll pad" id="ovBody">${skeletons(1)}</div>`;
   $("#reloadBtn").onclick = reload;
+  $("#ovHarvestBtn").onclick = doHarvest;
+  loadWeekStrip();
   const [stats, ins, jobsData] = await Promise.all([
     api("/api/stats"), api("/api/insights"), api("/api/jobs?sort=for_you&level=suitable"),
   ]);
@@ -764,12 +1185,14 @@ async function renderOverview() {
           <span class="fn-n">${bs[k] || 0}</span></div>`).join("")}</div>
       </div>
     </div>`;
-  $$("[data-goto]").forEach((el) => (el.onclick = () => setPage(el.dataset.goto)));
+  // "insights" was a distinct page/tab once; it now just lives further down
+  // the Applications view, so the goto target collapses to that page.
+  $$("[data-goto]").forEach((el) => (el.onclick = () => setPage(el.dataset.goto === "insights" ? "applications" : el.dataset.goto)));
   $$(".pick[data-id]").forEach((el) => (el.onclick = () => { selectedId = el.dataset.id; setPage("jobs"); }));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Page: Insights (what the model learned)
+   Insights — affinity rows shared by the panels rendered inside Applications
    ═══════════════════════════════════════════════════════════════════════════ */
 function affRows(list, maxW) {
   if (!list.length) return `<div style="color:var(--faint);font-size:12.5px;padding:4px 0">Not enough signal yet.</div>`;
@@ -781,48 +1204,6 @@ function affRows(list, maxW) {
       <span class="aff-track"><span class="${side}" style="${style}"></span></span>
       <span class="aff-sup">${x.pos}✓ ${x.neg}✕</span></div>`;
   }).join("")}</div>`;
-}
-async function renderInsights() {
-  $("#view").innerHTML = `<div class="pagehead"><div class="pagehead-l"><h1 class="pagetitle">${ico("brain")} Insights</h1><p class="pagesub">What the model has learned from your decisions.</p></div>
-    <div class="pagehead-r"><button class="btn btn-ghost" id="reloadBtn">${ico("refresh", "btn-ico")}<span>Refresh</span></button></div></div>
-    <div class="scroll pad" id="insBody">${skeletons(1)}</div>`;
-  $("#reloadBtn").onclick = reload;
-  const ins = await api("/api/insights");
-  const m = ins.model;
-  const allW = [];
-  ["role", "city", "company", "kw", "seniority", "sponsorship", "startup"].forEach((ns) => {
-    (ins.likes[ns] || []).forEach((x) => allW.push(Math.abs(x.weight)));
-    (ins.dislikes[ns] || []).forEach((x) => allW.push(Math.abs(x.weight)));
-  });
-  const maxW = Math.max(0.5, ...allW);
-  const banner = m.ready
-    ? `<div class="model-banner ready">${ico("check")}<div class="mb-txt"><b>Model active.</b> Learned from ${m.pos} pursued and ${m.neg} rejected jobs across ${m.n_features} signals. The <b>For you</b> sort now blends this with base relevance.</div></div>`
-    : `<div class="model-banner">${ico("brain")}<div class="mb-txt"><b>Still learning.</b> It has ${m.pos} pursued and ${m.neg} rejected so far. <b>Dismiss</b> a few jobs you're not into (and star ones you love) so it can learn what to avoid, not just what you like.</div></div>`;
-
-  const likePanel = (title, ns) => `<div class="panel"><h3>${title}</h3>${affRows(ins.likes[ns] || [], maxW)}</div>`;
-  const spark = ins.timeline.length
-    ? `<div class="spark">${(() => { const mx = Math.max(1, ...ins.timeline.map((d) => d.n)); return ins.timeline.map((d) => `<span class="bar" style="height:${(d.n / mx) * 100}%" title="${d.day}: ${d.n}"></span>`).join(""); })()}</div>`
-    : `<div style="color:var(--faint);font-size:12.5px">No activity logged yet.</div>`;
-
-  $("#insBody").innerHTML = `
-    ${banner}
-    <div class="grid tiles" style="margin-bottom:16px">
-      <div class="tile"><div class="t-top"><span class="t-label">Decisions made</span>${ico("bolt")}</div><div class="t-num">${ins.totals.decided}</div><div class="t-foot">${ins.totals.pursued} pursued · ${ins.totals.rejected} passed</div></div>
-      <div class="tile"><div class="t-top"><span class="t-label">Pursue rate</span>${ico("check")}</div><div class="t-num ok">${ins.totals.pursue_rate != null ? Math.round(ins.totals.pursue_rate * 100) + "%" : "—"}</div><div class="t-foot">of decided jobs</div></div>
-      <div class="tile"><div class="t-top"><span class="t-label">Signals learned</span>${ico("brain")}</div><div class="t-num accent">${m.n_features}</div><div class="t-foot">feature weights</div></div>
-      <div class="tile"><div class="t-top"><span class="t-label">Starred</span>${ico("star")}</div><div class="t-num">${ins.totals.starred}</div><div class="t-foot">your shortlist</div></div>
-    </div>
-    <div class="grid aff-grid" style="margin-bottom:16px">
-      ${likePanel(ico("check") + " Role families you pursue", "role")}
-      ${likePanel(ico("jobs") + " Locations you pursue", "city")}
-      ${likePanel(ico("sparkle") + " Keywords that attract you", "kw")}
-      ${likePanel(ico("trophy") + " Companies you pursue", "company")}
-    </div>
-    ${m.ready ? `<div class="grid aff-grid" style="margin-bottom:16px">
-      <div class="panel"><h3>${ico("x")} What you tend to pass on</h3>${affRows([...(ins.dislikes.kw || []), ...(ins.dislikes.role || []), ...(ins.dislikes.city || [])].sort((a, b) => a.weight - b.weight).slice(0, 8), maxW)}</div>
-      <div class="panel"><h3>${ico("insights")} Seniority & type</h3>${affRows([...(ins.likes.seniority || []), ...(ins.likes.startup || []), ...(ins.likes.sponsorship || [])], maxW)}</div>
-    </div>` : ""}
-    <div class="panel"><h3>${ico("clock")} Activity (last 30 days)</h3>${spark}</div>`;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -957,7 +1338,7 @@ function renderAbout() {
   $("#view").innerHTML = `
     <div class="pagehead"><div class="pagehead-l"><h1 class="pagetitle">${ico("book")} How to use job cache</h1>
       <p class="pagesub">The whole workflow, every command, and the shortcuts.</p></div></div>
-    <div class="scroll pad" id="aboutBody">
+    <div class="scroll pad narrowpad" id="aboutBody">
       <div class="ab-hero">
         <p>job cache finds real jobs, ranks them against your CV, and helps you apply, all locally and with <b>no API keys</b>. The AI is <b>you running Claude Code</b> in this repo: the dashboard and Claude talk through files in the <code>queue/</code> folder, so there's nothing to pay for. Assisted apply, not auto-apply: it finds, ranks, and drafts; you review and submit.</p>
       </div>
@@ -973,7 +1354,7 @@ function renderAbout() {
             ${step(5, "Generate", "In a terminal in this repo, run <code>claude</code>, then <code>/apply</code>. Claude writes a tailored cover letter and per-role notes, grouped by company, in your voice.")}
             ${step(6, "Review &amp; apply", "Back in the app, open a queued job. Read the materials, hit <b>Apply workspace</b> for side-by-side copy-paste (or <b>Pop out</b> the form), submit, then click <b>Mark as applied</b>.")}
             ${step(7, "Answer questions", "For custom form questions (\"describe a project…\"), use the <b>Q&amp;A</b> on the Queue page. Type <b>@</b> to reference a job, ask, run <code>/answer</code>, and copy the draft.")}
-            ${step(8, "Track &amp; learn", "The <b>Applications</b> tab tracks each application's status. <b>Insights</b> learns what you pursue and sharpens the <b>For you</b> ranking.")}
+            ${step(8, "Track &amp; learn", "<b>Applications</b> tracks each one's status, grouped by company, with what the model has learned right below — it sharpens the <b>For you</b> ranking as you go.")}
           </ol>
         </div>
 
@@ -1005,8 +1386,7 @@ function renderAbout() {
             ${pageRow("overview", "Overview", "your hunt at a glance, plus top picks.")}
             ${pageRow("jobs", "Jobs", "browse matches (hides applied &amp; dismissed).")}
             ${pageRow("queue", "Queue", "pursue jobs, review materials, and the Q&amp;A assistant.")}
-            ${pageRow("applications", "Applications", "your tracker, with CSV export.")}
-            ${pageRow("insights", "Insights", "what the model learned about your taste.")}
+            ${pageRow("applications", "Applications", "your tracker by company, with what the model has learned built in, and CSV export.")}
             ${pageRow("profile", "Profile", "your search preferences (countries, roles, titles, keywords), CV, and voice.")}
           </div>
         </div>
@@ -1014,7 +1394,7 @@ function renderAbout() {
           <h3>${ico("bolt")} Keyboard shortcuts</h3>
           <div class="kbd-grid">
             ${key("<kbd>⌘</kbd><kbd>K</kbd>", "Command palette (search + jump + actions)")}
-            ${key("<kbd>g</kbd> then <kbd>o</kbd>/<kbd>j</kbd>/<kbd>q</kbd>/<kbd>a</kbd>/<kbd>i</kbd>/<kbd>p</kbd>", "Go to a page")}
+            ${key("<kbd>g</kbd> then <kbd>o</kbd>/<kbd>j</kbd>/<kbd>q</kbd>/<kbd>a</kbd>/<kbd>p</kbd>/<kbd>h</kbd>", "Go to a page")}
             ${key("<kbd>j</kbd> / <kbd>k</kbd>", "Move up / down the list")}
             ${key("<kbd>s</kbd>", "Star the selected job")}
             ${key("<kbd>e</kbd>", "Queue the selected job")}
@@ -1044,6 +1424,7 @@ async function openWorkspace(id) {
   const j = await api("/api/jobs/" + id);
   if (!j.apply_url) { toast("No apply URL for this job", "err"); return; }
   wsOpenForId = id;
+  updateSidebarCompact();
   const m = j.materials_struct;
   const applied = j.status === "applied";
   const leftBlocks = m ? materialsHtml(m) : emptyState("sparkle", "No materials yet", "Queue this job and run /apply first.");
@@ -1137,6 +1518,7 @@ async function loadWsStage(id, url) {
 function teardownWorkspace() {
   qaWorkspace.stopPoll();
   wsOpenForId = null;
+  updateSidebarCompact();
   const host = $("#detail");
   if (host) host.classList.remove("ws-host");
 }
@@ -1162,8 +1544,8 @@ async function openPalette() {
     { t: "Go to Jobs", ico: "jobs", run: () => setPage("jobs"), sub: "Page" },
     { t: "Go to Queue", ico: "queue", run: () => setPage("queue"), sub: "Page" },
     { t: "Go to Applications", ico: "applications", run: () => setPage("applications"), sub: "Page" },
-    { t: "Go to Insights", ico: "insights", run: () => setPage("insights"), sub: "Page" },
     { t: "Go to Profile", ico: "profile", run: () => setPage("profile"), sub: "Page" },
+    { t: "Go to How to use", ico: "book", run: () => setPage("about"), sub: "Page" },
     { t: "Harvest jobs", ico: "sparkle", run: () => { closePalette(); doHarvest(); }, sub: "Action" },
     { t: "Toggle theme", ico: config.theme === "dark" ? "sun" : "moon", run: toggleTheme, sub: "Action" },
     { t: "Open settings", ico: "settings", run: openSettings, sub: "Action" },
@@ -1171,13 +1553,18 @@ async function openPalette() {
   ];
   let jobs = [];
   try { jobs = (await api("/api/jobs?level=all&sort=for_you")).jobs; } catch (e) {}
+  // The user can close the palette (Escape, scrim click) while this fetch is
+  // still in flight — closePalette() wipes #palette's innerHTML, so #palList
+  // is gone by the time we get here. Bail out instead of crashing on null.
+  if ($("#palette").hidden || !$("#palList")) return;
   const render = () => {
+    const list = $("#palList"); if (!list) return;
     const q = input.value.trim().toLowerCase();
     const cmdMatches = commands.filter((c) => !q || c.t.toLowerCase().includes(q));
     const jobMatches = q ? jobs.filter((j) => (j.title + " " + j.company).toLowerCase().includes(q)).slice(0, 7) : [];
     palItems = [...cmdMatches.map((c) => ({ ...c, kind: "cmd" })), ...jobMatches.map((j) => ({ t: j.title, sub: j.company, ico: "jobs", kind: "job", id: j.id }))];
     palSel = 0;
-    $("#palList").innerHTML =
+    list.innerHTML =
       (cmdMatches.length ? `<div class="pal-sec">Commands</div>` + cmdMatches.map((c, i) => palRow(c, i)).join("") : "") +
       (jobMatches.length ? `<div class="pal-sec">Jobs</div>` + jobMatches.map((j, i) => palRow({ t: j.title, sub: j.company, ico: "jobs" }, cmdMatches.length + i)).join("") : "");
     highlightPal();
@@ -1348,12 +1735,21 @@ function openOnboarding(st) {
 /* ═══════════════════════════════════════════════════════════════════════════
    Harvest + routing + counts
    ═══════════════════════════════════════════════════════════════════════════ */
+// Two harvest triggers exist (sidebar + Overview header) — both share the
+// .harvest-trigger class so either one reflects the busy state correctly,
+// and each keeps its own idle label via data-label.
+function _setHarvestBusy(busy) {
+  $$(".harvest-trigger").forEach((b) => {
+    b.disabled = busy;
+    const txt = b.querySelector(".btn-txt");
+    if (txt) txt.textContent = busy ? "Harvesting…" : (b.dataset.label || "Harvest jobs");
+  });
+}
 async function doHarvest() {
-  const b = $("#harvestBtn"); const txt = b.querySelector(".btn-txt");
-  b.disabled = true; if (txt) txt.textContent = "Harvesting…";
+  _setHarvestBusy(true);
   try { const s = await api("/api/harvest", { method: "POST" }); toast(`Harvested ${s.kept} jobs${s.errors && s.errors.length ? ` · ${s.errors.length} skipped` : ""}`, "ok"); await reload(); }
   catch (e) { toast("Harvest failed", "err"); }
-  finally { b.disabled = false; if (txt) txt.textContent = "Harvest jobs"; }
+  finally { _setHarvestBusy(false); }
 }
 async function setPage(p) {
   page = p;
@@ -1366,8 +1762,7 @@ async function reload() {
     if (page === "overview") await renderOverview();
     else if (page === "jobs") await renderJobs();
     else if (page === "queue") await renderGrouped("queue");
-    else if (page === "applications") await renderGrouped("applications");
-    else if (page === "insights") await renderInsights();
+    else if (page === "applications") await renderApplications();
     else if (page === "about") renderAbout();
     else if (page === "profile") await renderProfile();
   } catch (err) {
@@ -1441,7 +1836,7 @@ function moveSel(delta) {
   selectedId = listCache[i];
   const card = $(`.card[data-id="${selectedId}"]`);
   if (card) { $$(".card").forEach((el) => el.classList.toggle("active", el.dataset.id === selectedId)); card.scrollIntoView({ block: "nearest" }); }
-  renderDetail(selectedId);
+  if (page !== "jobs") renderDetail(selectedId);
 }
 document.addEventListener("keydown", (e) => {
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
@@ -1457,17 +1852,17 @@ document.addEventListener("keydown", (e) => {
   if (typing) return;
   if (gPending) {
     gPending = false;
-    const map = { o: "overview", j: "jobs", q: "queue", a: "applications", i: "insights", p: "profile" };
+    const map = { o: "overview", j: "jobs", q: "queue", a: "applications", p: "profile", h: "about" };
     if (map[e.key]) { setPage(map[e.key]); return; }
   }
   if (e.key === "g") { gPending = true; setTimeout(() => (gPending = false), 800); return; }
-  if (e.key === "/") { e.preventDefault(); if (page !== "jobs") setPage("jobs").then(() => $("#f-q")?.focus()); else $("#f-q")?.focus(); return; }
+  if (e.key === "/") { e.preventDefault(); if (page !== "jobs") setPage("jobs").then(() => $("#jfQ")?.focus()); else $("#jfQ")?.focus(); return; }
   if (e.key === "j") moveSel(1);
   else if (e.key === "k") moveSel(-1);
-  else if (e.key === "s" && selectedId) toggleStar(selectedId);
-  else if (e.key === "e" && selectedId) queueJob(selectedId);
-  else if (e.key === "x" && selectedId) dismissJob(selectedId);
-  else if (e.key === "?") toast("⌘K palette · g+o/j/q/a/i/p pages · j/k move · s star · e queue · x dismiss", "info");
+  else if (e.key === "s" && selectedId) { if (page === "jobs") toggleStarCard(selectedId); else toggleStar(selectedId); }
+  else if (e.key === "e" && selectedId) { if (page === "jobs") queueJobCard(selectedId); else queueJob(selectedId); }
+  else if (e.key === "x" && selectedId) { if (page === "jobs") dismissJobCard(selectedId); else dismissJob(selectedId); }
+  else if (e.key === "?") toast("⌘K palette · g+o/j/q/a/p/h pages · j/k move · s star · e queue · x dismiss", "info");
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1477,6 +1872,7 @@ $("#harvestBtn").onclick = doHarvest;
 $("#cmdTrigger").onclick = openPalette;
 $("#settingsBtn").innerHTML = ico("settings"); $("#settingsBtn").onclick = openSettings;
 $("#themeBtn").onclick = toggleTheme;
+$("#sidebarToggleBtn").innerHTML = ico("sidebar"); $("#sidebarToggleBtn").onclick = toggleSidebarCollapsed;
 
 (async function init() {
   try {

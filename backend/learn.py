@@ -17,7 +17,7 @@ import math
 import os
 import re
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -205,7 +205,23 @@ def blended_score(job: dict, model: dict) -> float:
 
 # --- persistence + insights -------------------------------------------------
 
+# Training re-tokenizes every job's title+description and writes model.json to
+# disk — real work, not free. Every page load used to call load() 2-3 times
+# (jobs/stats/insights all fire in parallel) and every one of those retrained
+# from scratch, even though nothing about Sami's decisions had changed since
+# the last request. Cache the trained model in memory and only retrain when a
+# decision actually changes (queue/dismiss/star/status/harvest/import) —
+# invalidate() is called from those spots in app.py.
+_CACHE: Dict[str, object] = {"model": None, "dirty": True}
+
+
+def invalidate() -> None:
+    _CACHE["dirty"] = True
+
+
 def load(conn) -> dict:
+    if not _CACHE["dirty"] and _CACHE["model"] is not None:
+        return _CACHE["model"]
     import db
     model = train(db.all_jobs(conn))
     try:
@@ -213,6 +229,8 @@ def load(conn) -> dict:
             json.dump(model, f, ensure_ascii=False, indent=2)
     except OSError:
         pass
+    _CACHE["model"] = model
+    _CACHE["dirty"] = False
     return model
 
 
@@ -237,16 +255,21 @@ def insights(conn) -> dict:
     likes = {ns: _top(model, ns, +1) for ns in NAMESPACES}
     dislikes = {ns: _top(model, ns, -1) for ns in NAMESPACES}
 
-    # activity timeline from the events log (last 30 days, by day)
-    events = db.recent_events(conn, limit=2000)
+    # Applications-per-day: every one of the last 30 calendar days, zero-filled.
+    # This used to tally every decision event (queue/star/dismiss/status
+    # change), which put "dismissed 100 postings" and "applied to 2 jobs" on
+    # the same number — now it's specifically applications, same source as
+    # the Overview "This week" strip.
+    applied_events = db.applied_events(conn)
     by_day = Counter()
-    action_counts = Counter()
-    for e in events:
+    for e in applied_events:
         day = (e.get("ts") or "")[:10]
         if day:
             by_day[day] += 1
-        action_counts[e.get("action")] += 1
-    timeline = [{"day": d, "n": by_day[d]} for d in sorted(by_day)][-30:]
+    today = datetime.now(timezone.utc).date()
+    last_30_days = [(today - timedelta(days=i)).isoformat() for i in range(29, -1, -1)]
+    timeline = [{"day": d, "n": by_day.get(d, 0)} for d in last_30_days]
+    action_counts = Counter(e.get("action") for e in db.recent_events(conn, limit=2000))
 
     pursued = sum(funnel[s] for s in POSITIVE_STATUS)
     rejected = sum(funnel[s] for s in NEGATIVE_STATUS)

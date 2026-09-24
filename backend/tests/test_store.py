@@ -63,6 +63,24 @@ class TestDB(unittest.TestCase):
         self.assertEqual(len(db.get_jobs(self.conn, role_family="swe")), 1)
         self.assertEqual(len(db.get_jobs(self.conn)), 2)
 
+    def test_applied_events_keeps_first_timestamp_per_job(self):
+        job = sample_job()
+        db.upsert_jobs(self.conn, [job])
+        db.log_event(self.conn, job.id, "status:applied", {})
+        # a later status change on the same job (e.g. interview) must not
+        # displace the original "marked applied" timestamp
+        db.log_event(self.conn, job.id, "status:interview", {})
+        events = db.applied_events(self.conn)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["job_id"], job.id)
+
+    def test_applied_events_ignores_other_actions(self):
+        job = sample_job()
+        db.upsert_jobs(self.conn, [job])
+        db.log_event(self.conn, job.id, "dismiss", {})
+        db.log_event(self.conn, job.id, "queue", {})
+        self.assertEqual(db.applied_events(self.conn), [])
+
 
 class TestQueue(unittest.TestCase):
     def setUp(self):

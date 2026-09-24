@@ -59,6 +59,7 @@ def _reconcile(conn) -> None:
         job = db.get_job(conn, job_id)
         if job and job["status"] in ("queued", "interested"):
             db.set_status(conn, job_id, "materials_ready")
+            learn.invalidate()
 
 
 def _refresh_csv(conn) -> None:
@@ -316,6 +317,18 @@ def applications():
         conn.close()
 
 
+@app.get("/api/applications/week")
+def applications_week():
+    """Timestamps of when jobs were first marked applied — the dashboard's
+    'This week' strip buckets these into local calendar days client-side."""
+    conn = _conn()
+    try:
+        events = db.applied_events(conn)
+        return {"applied": [e["ts"] for e in events if e["ts"]]}
+    finally:
+        conn.close()
+
+
 @app.get("/api/applications.csv")
 def applications_csv():
     conn = _conn()
@@ -476,6 +489,7 @@ def queue_job(job_id: str):
         db.set_status(conn, job_id, "queued")
         db.log_event(conn, job_id, "queue", _snapshot(job))
         _refresh_csv(conn)
+        learn.invalidate()
         return {"ok": True, "queued": os.path.basename(path)}
     finally:
         conn.close()
@@ -490,6 +504,7 @@ def dismiss_job(job_id: str):
             raise HTTPException(404, "job not found")
         db.set_status(conn, job_id, "dismissed")
         db.log_event(conn, job_id, "dismiss", _snapshot(job))
+        learn.invalidate()
         return {"ok": True, "status": "dismissed"}
     finally:
         conn.close()
@@ -504,6 +519,7 @@ def star_job(job_id: str, body: StarBody):
             raise HTTPException(404, "job not found")
         db.set_starred(conn, job_id, body.starred)
         db.log_event(conn, job_id, "star" if body.starred else "unstar", _snapshot(job))
+        learn.invalidate()
         return {"ok": True, "starred": body.starred}
     finally:
         conn.close()
@@ -540,6 +556,7 @@ def set_status(job_id: str, body: StatusBody):
         db.set_status(conn, job_id, body.status)
         db.log_event(conn, job_id, f"status:{body.status}", _snapshot(job))
         _refresh_csv(conn)
+        learn.invalidate()
         return {"ok": True, "status": body.status}
     finally:
         conn.close()
@@ -550,6 +567,7 @@ def run_harvest():
     conn = _conn()
     try:
         summary = harvester.harvest(conn, verbose=False)
+        learn.invalidate()
         return summary
     finally:
         conn.close()
@@ -653,6 +671,7 @@ def import_all(body: ImportBody):
             os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
             with open(CONFIG_PATH, "w", encoding="utf-8") as f:
                 json.dump(cfg, f, ensure_ascii=False, indent=2)
+        learn.invalidate()
         return {"ok": True, "added": added, "updated": updated, "materials": mats,
                 "requeued": requeued,
                 "questions": len(body.questions or []), "events": len(body.events or [])}
@@ -744,7 +763,9 @@ def _inlined_index() -> str:
     js = queue_io._read(os.path.join(FRONTEND_DIR, "app.js"))
     import re as _re
     # function replacements so backslashes in CSS/JS are NOT treated as regex group refs
-    html = _re.sub(r'<link rel="stylesheet"[^>]*>', lambda _m: f"<style>{css}</style>", html, count=1)
+    # match only our own stylesheet link (by href), not the Google Fonts <link
+    # rel="stylesheet"> in <head> — inlining that one would drop the font import.
+    html = _re.sub(r'<link rel="stylesheet" href="/styles\.css[^"]*"\s*/?>', lambda _m: f"<style>{css}</style>", html, count=1)
     html = _re.sub(r'<script src="/app\.js[^"]*"></script>', lambda _m: f"<script>{js}</script>", html, count=1)
     return html
 

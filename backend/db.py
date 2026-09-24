@@ -218,6 +218,16 @@ def recent_events(conn: sqlite3.Connection, limit: int = 500) -> List[dict]:
     return [dict(r) for r in cur.fetchall()]
 
 
+def applied_events(conn: sqlite3.Connection) -> List[dict]:
+    """First 'marked applied' timestamp per job. A job's status can move on to
+    interview/offer/rejected afterwards without losing the day it was actually
+    applied to, so this reads the event log (the source of truth for when a
+    status change happened) rather than the jobs table's current status."""
+    cur = conn.execute(
+        "SELECT job_id, MIN(ts) AS ts FROM events WHERE action='status:applied' GROUP BY job_id")
+    return [dict(r) for r in cur.fetchall()]
+
+
 # --- application Q&A --------------------------------------------------------
 def add_question(conn: sqlite3.Connection, qid: str, question: str,
                  job_id: Optional[str], company: Optional[str]) -> dict:
