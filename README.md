@@ -58,8 +58,8 @@ Only internship, junior and mid-level roles asking for at most 3 years are store
 Two complementary, entirely keyless layers, both configured in [`companies.yaml`](companies.yaml):
 
 - **Curated single-company ATS boards** — Greenhouse, Lever, Ashby, SmartRecruiters,
-  Workable, and best-effort Workday — for the ~70 employers you specifically care about
-  (security vendors, pentest consultancies, and big-tech security orgs). Adding one is a single line.
+  Workable, and best-effort Workday — for security-first employers only
+  (pentest consultancies and security product companies). Adding one is a single line.
 - **Keyless aggregators** — Remotive, Arbeitnow, Jobicy, Himalayas, RemoteOK, and The Muse.
   Each source fans out to *hundreds* of employers in one call, so the search is wide out of
   the box (a fresh harvest of just the aggregators pulls ~900 relevant EU/remote roles across

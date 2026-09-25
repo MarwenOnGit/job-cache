@@ -17,22 +17,11 @@
 #               broad boards only keep security roles.
 
 companies:
-  # ---------------- Security vendors / product security (Greenhouse) ----------------
-  - { name: "Cloudflare",       ats_type: greenhouse,      ats_slug: cloudflare,     hq_city: London,     is_startup: false }
-  - { name: "GitLab",           ats_type: greenhouse,      ats_slug: gitlab,         hq_city: Remote,     is_startup: false }
-  - { name: "Datadog",          ats_type: greenhouse,      ats_slug: datadog,        hq_city: Paris,      is_startup: false }
-  - { name: "Elastic",          ats_type: greenhouse,      ats_slug: elastic,        hq_city: Remote,     is_startup: false }
-  - { name: "Snyk",             ats_type: greenhouse,      ats_slug: snyk,           hq_city: London,     is_startup: true }
-  - { name: "HackerOne",        ats_type: greenhouse,      ats_slug: hackerone,      hq_city: Remote,     is_startup: true }
-  - { name: "Sysdig",           ats_type: greenhouse,      ats_slug: sysdig,         hq_city: Remote,     is_startup: true }
-  - { name: "Semgrep",          ats_type: greenhouse,      ats_slug: semgrep,        hq_city: Remote,     is_startup: true }
-  - { name: "Chainguard",       ats_type: greenhouse,      ats_slug: chainguard,     hq_city: Remote,     is_startup: true }
-  - { name: "Sonar (SonarSource)", ats_type: lever,        ats_slug: sonarsource,    hq_city: Geneva,     is_startup: true }
-  - { name: "Proton",           ats_type: greenhouse,      ats_slug: proton,         hq_city: Geneva,     is_startup: true }
-  - { name: "1Password",        ats_type: lever,           ats_slug: 1password,      hq_city: Remote,     is_startup: false }
-  - { name: "Doppler",          ats_type: ashby,           ats_slug: doppler,        hq_city: Remote,     is_startup: true }
-  - { name: "Wiz",              ats_type: greenhouse,      ats_slug: wiz,            hq_city: Remote,     is_startup: true }
-  - { name: "Aqua Security",    ats_type: greenhouse,      ats_slug: aquasecurity,   hq_city: Remote,     is_startup: true }
+  # Security-first companies only: every employer here sells security or does
+  # offensive work, so their whole board is relevant. General tech companies with a
+  # security team (GitLab, Datadog, Stripe...) are NOT listed: their boards are mostly
+  # non-security roles, and their security openings still come in through the searches
+  # below. Add a company only with its real ATS slug (the {slug} in its board URL).
 
   # ---------------- Offensive-security consultancies / pentest firms ----------------
   - { name: "Synack",           ats_type: greenhouse,      ats_slug: synack,         hq_city: Remote,     is_startup: true }
@@ -44,12 +33,15 @@ companies:
   - { name: "Include Security", ats_type: greenhouse,      ats_slug: includesecurity, hq_city: Remote,    is_startup: true }
   - { name: "Doyensec",         ats_type: greenhouse,      ats_slug: doyensec,       hq_city: Remote,     is_startup: true }
 
-  # ---------------- Big tech with strong security orgs (EU offices) ----------------
-  - { name: "Stripe",           ats_type: greenhouse,      ats_slug: stripe,         hq_city: London,     is_startup: false }
-  - { name: "Databricks",       ats_type: greenhouse,      ats_slug: databricks,     hq_city: London,     is_startup: false }
-  - { name: "Figma",            ats_type: greenhouse,      ats_slug: figma,          hq_city: London,     is_startup: false }
-  - { name: "Wise",             ats_type: smartrecruiters, ats_slug: Wise,           hq_city: London,     is_startup: false }
-  - { name: "Nexthink",         ats_type: smartrecruiters, ats_slug: Nexthink,       hq_city: Geneva,     is_startup: true }
+  # ---------------- Security product companies ----------------
+  - { name: "HackerOne",        ats_type: greenhouse,      ats_slug: hackerone,      hq_city: Remote,     is_startup: true }
+  - { name: "Wiz",              ats_type: greenhouse,      ats_slug: wiz,            hq_city: Remote,     is_startup: true }
+  - { name: "Snyk",             ats_type: greenhouse,      ats_slug: snyk,           hq_city: London,     is_startup: true }
+  - { name: "Semgrep",          ats_type: greenhouse,      ats_slug: semgrep,        hq_city: Remote,     is_startup: true }
+  - { name: "Aqua Security",    ats_type: greenhouse,      ats_slug: aquasecurity,   hq_city: Remote,     is_startup: true }
+  - { name: "Sysdig",           ats_type: greenhouse,      ats_slug: sysdig,         hq_city: Remote,     is_startup: true }
+  - { name: "Chainguard",       ats_type: greenhouse,      ats_slug: chainguard,     hq_city: Remote,     is_startup: true }
+  - { name: "1Password",        ats_type: lever,           ats_slug: 1password,      hq_city: Remote,     is_startup: false }
 
 sources:
   # Keyless aggregators. A value of `auto` is replaced at harvest time by ONE LIVE
@@ -75,9 +67,8 @@ sources:
   - { name: "RemoteOK (security)",      ats_type: remoteok, aggregator: true, tag: security }
   - { name: "RemoteOK (cybersecurity)", ats_type: remoteok, aggregator: true, tag: cybersecurity }
 
-  # Arbeitnow: German/EU board with no search parameter; newest pages are walked and
-  # the harvester keeps only security roles.
+  # Arbeitnow and The Muse have no keyword search: their newest postings are walked
+  # and only jobs whose TITLE is a security role are kept (see harvester.keep).
   - { name: "Arbeitnow (EU)",     ats_type: arbeitnow,       aggregator: true, pages: 8 }
 
-  # The Muse: IT / engineering categories, filtered to security roles.
   - { name: "The Muse",           ats_type: themuse,         aggregator: true, pages: 3, category: ["Computer and IT", "Software Engineering"] }

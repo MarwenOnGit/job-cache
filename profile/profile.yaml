@@ -24,13 +24,15 @@ jobs:
   # search-capable board (Remotive, Jobicy, Himalayas, RemoteOK, Workable).
   search_terms:
     - penetration testing
+    - pentest intern
     - red team
     - offensive security
+    - ethical hacking
+    - penetration tester
     - security engineer intern
     - cybersecurity internship
-    - cloud security
+    - vulnerability research
     - application security
-    - security researcher
   # Extra terms for boards whose results are mostly French / German postings.
   local_terms:
     - stage cybersécurité
