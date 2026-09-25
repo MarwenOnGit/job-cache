@@ -1,6 +1,7 @@
 """FastAPI app: REST API + serves the static dashboard. Run: uvicorn app:app"""
 from __future__ import annotations
 
+import html
 import json
 import os
 import re
@@ -9,10 +10,10 @@ import time
 import urllib.request
 import urllib.error
 import uuid
-from typing import Optional
+from typing import List, Optional
 from urllib.parse import urljoin, urlparse
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, PlainTextResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -35,6 +36,40 @@ VALID_STATUSES = {
 }
 
 app = FastAPI(title="job cache")
+
+# The only hostnames this local app answers to. Anything else in the Host header
+# means a DNS-rebinding attempt (evil.example resolving to 127.0.0.1) or a request
+# from another machine, and must not reach the API.
+_LOCAL_HOSTNAMES = {"localhost", "127.0.0.1", "::1"}
+
+
+def _hostname(netloc: str) -> Optional[str]:
+    try:
+        return urlparse("//" + netloc).hostname
+    except ValueError:
+        return None
+
+
+@app.middleware("http")
+async def _local_only(request, call_next):
+    """Block requests that don't come from this dashboard itself.
+
+    - Host must be a loopback name (stops DNS rebinding).
+    - /api/* must be same-origin: a page on another site (or the sandboxed
+      Apply-workspace frame, whose origin is "null") can otherwise fire POSTs at
+      localhost, or embed GETs like /api/proxy, without the user knowing.
+    """
+    host = request.headers.get("host", "")
+    if _hostname(host) not in _LOCAL_HOSTNAMES:
+        return PlainTextResponse("Forbidden: unknown host", status_code=403)
+    if request.url.path.startswith("/api/"):
+        origin = request.headers.get("origin")
+        if origin is not None and urlparse(origin).netloc != host:
+            return PlainTextResponse("Forbidden: cross-origin request", status_code=403)
+        site = request.headers.get("sec-fetch-site")
+        if site is not None and site not in ("same-origin", "none"):
+            return PlainTextResponse("Forbidden: cross-site request", status_code=403)
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -144,11 +179,24 @@ class ConfigBody(BaseModel):
 
 
 # --- jobs -------------------------------------------------------------------
+_BLURB_CHARS = 240  # the cards show ~140; a little slack keeps word-boundary cuts identical
+
+
+def _blurb(description: Optional[str]) -> str:
+    """Whitespace-collapsed start of a description: what a list card displays."""
+    # str.split() splits on the same characters as regex \s, but runs in C
+    return " ".join((description or "")[:_BLURB_CHARS * 4].split())[:_BLURB_CHARS]
+
+
 @app.get("/api/jobs")
 def list_jobs(city: Optional[str] = None, role_family: Optional[str] = None,
               sponsorship: Optional[str] = None, startup: Optional[bool] = None,
               status: Optional[str] = None, level: str = "suitable", sort: str = "score",
-              starred: Optional[bool] = None, q: Optional[str] = None):
+              starred: Optional[bool] = None, q: Optional[str] = None,
+              limit: Optional[int] = None):
+    """Job list for cards and pickers. Full descriptions are NOT included (they
+    made this ~7 MB for a normal harvest): each job carries a short `blurb`, the
+    full text comes from /api/jobs/{id}, and text search uses /api/jobs/match."""
     conn = _conn()
     try:
         _reconcile(conn)
@@ -158,14 +206,44 @@ def list_jobs(city: Optional[str] = None, role_family: Optional[str] = None,
         model = learn.load(conn)
         for j in jobs:
             j["learned_score"] = learn.score(j, model)
-            j["for_you"] = learn.blended_score(j, model)
+            j["for_you"] = learn.blended_score(j, model, j["learned_score"])
         if sort == "for_you":
             jobs.sort(key=lambda j: j["for_you"], reverse=True)
         elif sort == "date":
             jobs.sort(key=lambda j: j.get("posted_at") or "", reverse=True)
         elif sort == "company":
             jobs.sort(key=lambda j: (j.get("company") or "").lower())
-        return {"count": len(jobs), "jobs": jobs, "model_ready": model.get("ready")}
+        total = len(jobs)
+        if limit is not None and limit >= 0:
+            jobs = jobs[:limit]
+        for j in jobs:   # only for what's actually sent
+            j["blurb"] = _blurb(j.pop("description", None))
+        return JSONResponse({"count": total, "jobs": jobs, "model_ready": model.get("ready")})
+    finally:
+        conn.close()
+
+
+@app.get("/api/jobs/match")
+def match_jobs(terms: List[str] = Query(default=[])):
+    """Ids of jobs whose text contains EVERY term (case-insensitive substring).
+
+    Same haystack the Jobs page used to build client-side from the full list —
+    title + company + description + match reasons — so filtering behaves exactly
+    as before, without shipping every description to the browser."""
+    needles = [t.strip().lower() for t in terms if t and t.strip()]
+    conn = _conn()
+    try:
+        ids = []
+        for r in conn.execute("SELECT id, title, company, description, match_reasons FROM jobs"):
+            try:
+                reasons = json.loads(r["match_reasons"] or "[]")
+            except (TypeError, ValueError):
+                reasons = []
+            hay = " ".join([r["title"] or "", r["company"] or "", r["description"] or "",
+                            " ".join(str(x) for x in reasons)]).lower()
+            if all(n in hay for n in needles):
+                ids.append(r["id"])
+        return JSONResponse({"ids": ids})
     finally:
         conn.close()
 
@@ -475,7 +553,7 @@ def get_job(job_id: str):
         job["materials_struct"] = queue_io.read_materials_structured(job_id)
         model = learn.load(conn)
         job["learned_score"] = learn.score(job, model)
-        job["for_you"] = learn.blended_score(job, model)
+        job["for_you"] = learn.blended_score(job, model, job["learned_score"])
         job["learned_reasons"] = learn.explain(job, model)
         job["model_ready"] = model.get("ready")
         return job
@@ -726,13 +804,16 @@ def proxy(url: str):
         return JSONResponse(
             {"ok": False, "status": None, "reason": "This site's application form doesn't survive embedding"},
             status_code=502)
+    if not http_util.is_public_url(url):
+        # never fetch loopback / LAN / link-local (cloud metadata) addresses
+        raise HTTPException(400, "url must point at a public address")
     req = urllib.request.Request(url, headers={
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
                       "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml",
     })
     try:
-        with urllib.request.urlopen(req, timeout=12) as r:
+        with http_util.open_public(req, timeout=12) as r:
             ctype = r.headers.get("Content-Type", "text/html")
             raw = r.read()
     except urllib.error.HTTPError as e:
@@ -747,7 +828,7 @@ def proxy(url: str):
     except Exception:  # noqa
         text = raw.decode("latin-1", errors="replace")
     # inject <base> so relative assets/links resolve against the origin
-    base_tag = f'<base href="{url}">'
+    base_tag = f'<base href="{html.escape(url, quote=True)}">'
     lower = text.lower()
     if "<head" in lower:
         idx = lower.index("<head")
@@ -767,16 +848,16 @@ def _inlined_index() -> str:
     Inlining means there's exactly one request — if the page loads at all, the whole
     app loads. Source files stay separate on disk for maintainability.
     """
-    html = queue_io._read(os.path.join(FRONTEND_DIR, "index.html"))
+    page = queue_io._read(os.path.join(FRONTEND_DIR, "index.html"))
     css = queue_io._read(os.path.join(FRONTEND_DIR, "styles.css"))
     js = queue_io._read(os.path.join(FRONTEND_DIR, "app.js"))
     import re as _re
     # function replacements so backslashes in CSS/JS are NOT treated as regex group refs
     # match only our own stylesheet link (by href), not the Google Fonts <link
     # rel="stylesheet"> in <head> — inlining that one would drop the font import.
-    html = _re.sub(r'<link rel="stylesheet" href="/styles\.css[^"]*"\s*/?>', lambda _m: f"<style>{css}</style>", html, count=1)
-    html = _re.sub(r'<script src="/app\.js[^"]*"></script>', lambda _m: f"<script>{js}</script>", html, count=1)
-    return html
+    page = _re.sub(r'<link rel="stylesheet" href="/styles\.css[^"]*"\s*/?>', lambda _m: f"<style>{css}</style>", page, count=1)
+    page = _re.sub(r'<script src="/app\.js[^"]*"></script>', lambda _m: f"<script>{js}</script>", page, count=1)
+    return page
 
 
 # --- static frontend (mounted last so /api/* wins) --------------------------

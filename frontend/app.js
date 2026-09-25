@@ -433,13 +433,30 @@ function daysAgo(iso) {
   const d = (Date.now() - new Date(iso).getTime()) / 86400000;
   return Number.isFinite(d) ? Math.max(0, Math.floor(d)) : null;
 }
+// Text search (search box + keyword chips) runs server-side: the job list no
+// longer carries full descriptions, so /api/jobs/match returns the ids whose
+// title/company/description/reasons contain every term. `ids` is null when no
+// term is active; `seq` drops responses that a newer keystroke superseded.
+let jobsMatch = { key: "[]", ids: null, seq: 0 };
+async function syncJobsMatch(force) {
+  const terms = [jobsView.q.trim(), ...jobsView.kw].filter(Boolean);
+  const key = JSON.stringify(terms);
+  if (key === jobsMatch.key && !force) return true;
+  const seq = ++jobsMatch.seq;
+  let ids = null;
+  if (terms.length) {
+    const data = await api("/api/jobs/match?" + terms.map((t) => "terms=" + encodeURIComponent(t)).join("&"));
+    ids = new Set(data.ids);
+  }
+  if (seq !== jobsMatch.seq) return false;
+  jobsMatch = { key, ids, seq };
+  return true;
+}
 function jobsPasses(j, skip) {
   const v = jobsView;
-  const hay = (j.title + " " + j.company + " " + (j.description || "") + " " + (j.match_reasons || []).join(" ")).toLowerCase();
   const age = daysAgo(j.posted_at);
   return (skip === "city" || !v.cities.size || v.cities.has(j.city))
-    && (!v.q.trim() || hay.includes(v.q.trim().toLowerCase()))
-    && v.kw.every((k) => hay.includes(k.toLowerCase()))
+    && (!jobsMatch.ids || jobsMatch.ids.has(j.id))
     && (!v.spon || j.sponsorship === v.spon)
     && (!v.ctype || (v.ctype === "startup") === !!j.is_startup)
     && (!v.posted || age == null || (v.posted === "today" ? age === 0 : age <= 7))
@@ -513,6 +530,14 @@ async function loadJobsAll(forceToast) {
   ]);
   jobsAll = data.jobs;
   jobsPrefs = prefs && prefs.preferences;
+  // a harvest/refresh may have added jobs that match the active search
+  try { await syncJobsMatch(true); } catch (e) {
+    // Never fall back to "no filter" while search terms are active: keep the
+    // last result for them (or show none), say so, and retry on the next change.
+    const active = !!(jobsView.q.trim() || jobsView.kw.length);
+    jobsMatch = { key: "", ids: active ? (jobsMatch.ids || new Set()) : null, seq: jobsMatch.seq + 1 };
+    if (active) toast("Search couldn't refresh; showing the last results", "err");
+  }
   jobsView.visibleCount = JOBS_FIRST_PAGE;
   // Arriving here from Overview or the command palette with a specific job in
   // mind (selectedId already set) opens straight to it, expanded and in view.
@@ -589,7 +614,7 @@ function jobCardHtml(j, scoreKey) {
       <div class="jf-cardmain">
         <div class="jf-cardtitle">${esc(j.title)}</div>
         <div class="jf-cardco">${esc(j.company)}</div>
-        <div class="jf-cardblurb">${esc(jobBlurb(j.description))}</div>
+        <div class="jf-cardblurb">${esc(jobBlurb(j.blurb))}</div>
         <div class="jf-chiprow">${jobTagsHtml(j)}</div>
       </div>
       <div class="jf-scorewrap"><div class="jf-scorelbl">${scoreKey === "match_score" ? "Match" : "For you"}</div><div class="jf-scorenum">${shown}<span>/100</span></div>${scoreBarHtml(shown)}</div>
@@ -673,10 +698,18 @@ function refreshJobsChrome() {
   wireJobsSide();
   wireJobsTop();
 }
-function refilterJobs() { jobsView.visibleCount = JOBS_FIRST_PAGE; renderJobsFeed(); }
+async function refilterJobs() {
+  try { if (!(await syncJobsMatch())) return; }   // superseded by a newer search
+  catch (e) { toast("Search failed", "err"); return; }
+  jobsView.visibleCount = JOBS_FIRST_PAGE; renderJobsFeed();
+}
 function wireJobsSide() {
   const host = $("#jfSide");
-  $("#jfQ", host).oninput = (e) => { jobsView.q = e.target.value; refilterJobs(); $("#jfQ").focus(); $("#jfQ").selectionStart = $("#jfQ").value.length; };
+  $("#jfQ", host).oninput = async (e) => {
+    jobsView.q = e.target.value;
+    await refilterJobs();   // re-renders the sidebar (and this input) once results are in
+    const q = $("#jfQ"); if (q) { q.focus(); q.selectionStart = q.value.length; }
+  };
   $$("[data-kw]", host).forEach((b) => (b.onclick = () => {
     const k = b.dataset.kw; jobsView.kw = jobsView.kw.includes(k) ? jobsView.kw.filter((x) => x !== k) : [...jobsView.kw, k]; refilterJobs();
   }));
@@ -1149,7 +1182,7 @@ async function renderOverview() {
   $("#ovHarvestBtn").onclick = doHarvest;
   loadWeekStrip();
   const [stats, ins, jobsData] = await Promise.all([
-    api("/api/stats"), api("/api/insights"), api("/api/jobs?sort=for_you&level=suitable"),
+    lastStats || api("/api/stats"), api("/api/insights"), api("/api/jobs?sort=for_you&level=suitable&limit=5"),
   ]);
   const bs = stats.by_status || {};
   const picks = jobsData.jobs.filter((j) => j.status === "interested").slice(0, 5);
@@ -1515,7 +1548,10 @@ async function loadWsStage(id, url) {
   }
   const html = await res.text();
   if (wsOpenForId !== id) return;
-  stage.innerHTML = `<iframe class="ws-frame" id="wsFrame" sandbox="allow-forms allow-scripts allow-same-origin allow-popups"></iframe>`;
+  // No allow-same-origin here: a srcdoc frame inherits OUR origin, so with it the
+  // third-party page's scripts could call /api/export and read the user's CV.
+  // Without it the frame gets an opaque origin, and the backend rejects its requests.
+  stage.innerHTML = `<iframe class="ws-frame" id="wsFrame" sandbox="allow-forms allow-scripts allow-popups"></iframe>`;
   $("#wsFrame").srcdoc = html;
 }
 function teardownWorkspace() {
@@ -1793,9 +1829,11 @@ function showFatal(err) {
     <button class="btn btn-primary" onclick="location.reload()">Reload</button></div>`;
   console.error("job cache:", err);
 }
+let lastStats = null;   // latest /api/stats, reused by the Overview (reload() always refreshes it first)
 async function refreshCounts() {
   try {
     const s = await api("/api/stats");
+    lastStats = s;
     const bs = s.by_status || {};
     counts.jobs = s.browsable || 0;
     counts.pending = bs.materials_ready || 0;
