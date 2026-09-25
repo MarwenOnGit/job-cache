@@ -1,5 +1,6 @@
 data/*.db
 data/*.json
+data/*.log
 queue/pending/*.json
 queue/done/*.md
 queue/questions/pending/*.json
