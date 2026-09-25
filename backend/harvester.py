@@ -53,8 +53,27 @@ def keep(job: Job, prefs: Optional[dict] = None) -> bool:
     search preferences. `prefs=None` means the broadest search (keep every
     supported location and role family)."""
     prefs = prefs if prefs is not None else prefs_mod.DEFAULTS
-    return (job.city in prefs_mod.target_locations(prefs)
-            and job.role_family in prefs_mod.target_role_families(prefs))
+    if not (job.city in prefs_mod.target_locations(prefs)
+            and job.role_family in prefs_mod.target_role_families(prefs)):
+        return False
+    return fits_level(job)
+
+
+# Required years of experience above which a role is out of reach for a
+# final-year student, whatever its title says.
+MAX_REQ_YEARS = 3
+
+
+def fits_level(job: Job) -> bool:
+    """Only store roles at the owner's level: internships, junior and mid titles.
+    Senior/staff/lead titles, or postings asking for more than MAX_REQ_YEARS years,
+    never enter the database (profile.yaml -> jobs.seniority)."""
+    wanted = set(profile_store.target_seniority())
+    if not wanted or "senior" in wanted:
+        return True
+    if job.seniority == "senior_plus":
+        return False
+    return job.req_years is None or job.req_years <= MAX_REQ_YEARS
 
 
 def ranking_terms(prefs: dict) -> List[str]:

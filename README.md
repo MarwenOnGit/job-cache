@@ -46,6 +46,13 @@ Then:
 4. Back in the dashboard, review the generated cover letter + CV bullets, click **Open
    apply page**, submit, and set the status.
 
+### Starting over
+
+`./reset.sh` wipes every harvested job, the decision log and the learned model, then
+searches again from `profile/profile.yaml`. Your CV, `preferences.md`, `applications/`
+and the queue are kept. (The first launch after this update does this once automatically.)
+Only internship, junior and mid-level roles asking for at most 3 years are stored.
+
 ## Data sources
 
 Two complementary, entirely keyless layers, both configured in [`companies.yaml`](companies.yaml):

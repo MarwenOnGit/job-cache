@@ -194,6 +194,11 @@ def nationality() -> str:
     return str(load().get("nationality") or "").strip()
 
 
+def target_seniority() -> List[str]:
+    """Levels hunted for (profile.yaml jobs.seniority), e.g. ["internship", "junior"]."""
+    return [s.lower() for s in _str_list(_section("jobs").get("seniority"))]
+
+
 def default_search_prefs() -> dict:
     """Search preferences implied by profile.yaml, used when the dashboard has
     never saved any (data/preferences.json missing)."""
