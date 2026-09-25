@@ -73,15 +73,37 @@ def _tokens(job: dict) -> List[str]:
     # built from, so a title that gets dismissed a lot doesn't smear its
     # negative weight onto every other job sharing one of those words.
     toks |= {f"{a} {b}" for a, b in zip(title_words, title_words[1:])}
-    hay = f" {title} {desc} "
+    # `f" {kw} " in hay` is exactly "kw is one of hay's space-separated pieces",
+    # so build that set once instead of rescanning the whole description per keyword.
+    pieces = set(f" {title} {desc} ".split(" "))
     for kw in _SKILL_KW:
-        if f" {kw} " in hay or kw in title:
+        if kw in pieces or kw in title:
             toks.add(kw)
     return sorted(toks)
 
 
+# Features depend only on a job's harvested fields, which change only when a
+# harvest rewrites the row — and every harvest bumps last_seen. So cache per job
+# id, stamped with last_seen: one entry per job (bounded), and a re-harvested job
+# misses and is recomputed. Saves re-tokenizing every description on each
+# /api/jobs request, which dominated its cost.
+_FEATURE_CACHE: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {}
+
+
 def features(job: dict) -> List[Tuple[str, str]]:
     """The (namespace, value) feature pairs that describe a job."""
+    jid, stamp = job.get("id"), job.get("last_seen")
+    if jid and stamp:
+        hit = _FEATURE_CACHE.get(jid)
+        if hit and hit[0] == stamp:
+            return hit[1]
+    feats = _compute_features(job)
+    if jid and stamp:
+        _FEATURE_CACHE[jid] = (stamp, feats)
+    return feats
+
+
+def _compute_features(job: dict) -> List[Tuple[str, str]]:
     feats: List[Tuple[str, str]] = [
         ("role", job.get("role_family") or "unknown"),
         ("city", job.get("city") or "other"),
@@ -195,12 +217,15 @@ def explain(job: dict, model: dict, top: int = 4) -> List[dict]:
     return contribs[:top]
 
 
-def blended_score(job: dict, model: dict) -> float:
-    """What powers the 'For you' sort: base relevance fused with learned taste."""
+def blended_score(job: dict, model: dict, learned: Optional[float] = None) -> float:
+    """What powers the 'For you' sort: base relevance fused with learned taste.
+    Pass `learned` when score(job, model) is already known, to skip recomputing it."""
     base = float(job.get("match_score") or 0.0)
     if not model.get("ready"):
         return base
-    return round(0.45 * base + 0.55 * score(job, model), 4)
+    if learned is None:
+        learned = score(job, model)
+    return round(0.45 * base + 0.55 * learned, 4)
 
 
 # --- persistence + insights -------------------------------------------------

@@ -10,10 +10,10 @@ import time
 import urllib.request
 import urllib.error
 import uuid
-from typing import Optional
+from typing import List, Optional
 from urllib.parse import urljoin, urlparse
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, PlainTextResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -179,11 +179,24 @@ class ConfigBody(BaseModel):
 
 
 # --- jobs -------------------------------------------------------------------
+_BLURB_CHARS = 240  # the cards show ~140; a little slack keeps word-boundary cuts identical
+
+
+def _blurb(description: Optional[str]) -> str:
+    """Whitespace-collapsed start of a description: what a list card displays."""
+    # str.split() splits on the same characters as regex \s, but runs in C
+    return " ".join((description or "")[:_BLURB_CHARS * 4].split())[:_BLURB_CHARS]
+
+
 @app.get("/api/jobs")
 def list_jobs(city: Optional[str] = None, role_family: Optional[str] = None,
               sponsorship: Optional[str] = None, startup: Optional[bool] = None,
               status: Optional[str] = None, level: str = "suitable", sort: str = "score",
-              starred: Optional[bool] = None, q: Optional[str] = None):
+              starred: Optional[bool] = None, q: Optional[str] = None,
+              limit: Optional[int] = None):
+    """Job list for cards and pickers. Full descriptions are NOT included (they
+    made this ~7 MB for a normal harvest): each job carries a short `blurb`, the
+    full text comes from /api/jobs/{id}, and text search uses /api/jobs/match."""
     conn = _conn()
     try:
         _reconcile(conn)
@@ -193,14 +206,44 @@ def list_jobs(city: Optional[str] = None, role_family: Optional[str] = None,
         model = learn.load(conn)
         for j in jobs:
             j["learned_score"] = learn.score(j, model)
-            j["for_you"] = learn.blended_score(j, model)
+            j["for_you"] = learn.blended_score(j, model, j["learned_score"])
         if sort == "for_you":
             jobs.sort(key=lambda j: j["for_you"], reverse=True)
         elif sort == "date":
             jobs.sort(key=lambda j: j.get("posted_at") or "", reverse=True)
         elif sort == "company":
             jobs.sort(key=lambda j: (j.get("company") or "").lower())
-        return {"count": len(jobs), "jobs": jobs, "model_ready": model.get("ready")}
+        total = len(jobs)
+        if limit is not None and limit >= 0:
+            jobs = jobs[:limit]
+        for j in jobs:   # only for what's actually sent
+            j["blurb"] = _blurb(j.pop("description", None))
+        return JSONResponse({"count": total, "jobs": jobs, "model_ready": model.get("ready")})
+    finally:
+        conn.close()
+
+
+@app.get("/api/jobs/match")
+def match_jobs(terms: List[str] = Query(default=[])):
+    """Ids of jobs whose text contains EVERY term (case-insensitive substring).
+
+    Same haystack the Jobs page used to build client-side from the full list —
+    title + company + description + match reasons — so filtering behaves exactly
+    as before, without shipping every description to the browser."""
+    needles = [t.strip().lower() for t in terms if t and t.strip()]
+    conn = _conn()
+    try:
+        ids = []
+        for r in conn.execute("SELECT id, title, company, description, match_reasons FROM jobs"):
+            try:
+                reasons = json.loads(r["match_reasons"] or "[]")
+            except (TypeError, ValueError):
+                reasons = []
+            hay = " ".join([r["title"] or "", r["company"] or "", r["description"] or "",
+                            " ".join(str(x) for x in reasons)]).lower()
+            if all(n in hay for n in needles):
+                ids.append(r["id"])
+        return JSONResponse({"ids": ids})
     finally:
         conn.close()
 
@@ -510,7 +553,7 @@ def get_job(job_id: str):
         job["materials_struct"] = queue_io.read_materials_structured(job_id)
         model = learn.load(conn)
         job["learned_score"] = learn.score(job, model)
-        job["for_you"] = learn.blended_score(job, model)
+        job["for_you"] = learn.blended_score(job, model, job["learned_score"])
         job["learned_reasons"] = learn.explain(job, model)
         job["model_ready"] = model.get("ready")
         return job
