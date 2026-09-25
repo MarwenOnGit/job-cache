@@ -48,7 +48,8 @@ class TestRoundTrip(unittest.TestCase):
             prefs_mod.PREFS_JSON_PATH = os.path.join(d, "preferences.json")
             try:
                 self.assertFalse(os.path.exists(prefs_mod.PREFS_JSON_PATH))
-                self.assertEqual(prefs_mod.load_structured(), prefs_mod.DEFAULTS)
+                # No saved file: the owner profile's defaults, not a blank search.
+                self.assertEqual(prefs_mod.load_structured(), prefs_mod.profile_defaults())
                 prefs_mod.save_structured({"locations": ["london"], "keywords": ["kafka"]})
                 loaded = prefs_mod.load_structured()
                 self.assertEqual(loaded["locations"], ["london"])

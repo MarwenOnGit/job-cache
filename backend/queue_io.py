@@ -12,6 +12,7 @@ import os
 from typing import Optional, Set
 
 from normalize import slugify
+import profile_store
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PENDING_DIR = os.path.join(ROOT, "queue", "pending")
@@ -38,8 +39,14 @@ INSTRUCTIONS = (
 
 
 def read_preferences() -> str:
-    """The user's preferences.md, falling back to the shipped example on a fresh clone."""
-    return _read(PREFS_PATH) or _read(PREFS_EXAMPLE_PATH)
+    """The user's preferences.md, falling back to the committed owner profile
+    (profile/preferences.md), then the shipped example on a fresh clone."""
+    return profile_store.preferences_markdown(PREFS_PATH, PREFS_EXAMPLE_PATH)
+
+
+def read_cv() -> str:
+    """The user's cv/cv.md, falling back to the committed owner profile (profile/cv.md)."""
+    return profile_store.cv_markdown(CV_PATH)
 
 
 # --- full personal export/import (CV, prefs, generated materials, onboarding) ---
@@ -102,7 +109,7 @@ def write_pending(job: dict) -> str:
     payload = {
         "job": job,
         "company_slug": slugify(job.get("company", "")),
-        "cv_markdown": _read(CV_PATH),
+        "cv_markdown": read_cv(),
         "preferences_markdown": read_preferences(),
         "instructions": INSTRUCTIONS,
     }
@@ -209,7 +216,7 @@ def write_question_pending(qid: str, question: str, jobs) -> str:
         "question": question,
         "references": references,
         "companies": [r["company"] for r in references],
-        "cv_markdown": _read(CV_PATH),
+        "cv_markdown": read_cv(),
         "preferences_markdown": read_preferences(),
         "instructions": QUESTION_INSTRUCTIONS,
     }

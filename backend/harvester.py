@@ -1,8 +1,10 @@
-"""Harvest orchestrator: companies.yaml -> adapters -> enrich -> filter -> SQLite."""
+"""Harvest orchestrator: companies.yaml + profile search terms -> live queries ->
+adapters -> enrich -> filter -> SQLite."""
 from __future__ import annotations
 
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
 
 import yaml
@@ -15,9 +17,12 @@ from ranker import score_job
 from seniority import classify_seniority, extract_required_years
 import db
 import prefs as prefs_mod
+import profile_store
+import queue_io
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COMPANIES_PATH = os.path.join(ROOT, "companies.yaml")
+_WORKERS = 8
 
 
 def load_companies(path: Optional[str] = None) -> List[dict]:
@@ -52,19 +57,64 @@ def keep(job: Job, prefs: Optional[dict] = None) -> bool:
             and job.role_family in prefs_mod.target_role_families(prefs))
 
 
+def ranking_terms(prefs: dict) -> List[str]:
+    """Terms the ranker rewards on top of its base vocabulary: the skills listed in
+    the user's own CV, plus titles/keywords saved in the search preferences."""
+    terms = prefs_mod.extra_keywords(prefs)
+    for s in profile_store.extract_skills(queue_io.read_cv()):
+        if s not in terms:
+            terms.append(s)
+    return terms
+
+
+def expand_sources(companies: List[dict], prefs: dict) -> List[dict]:
+    """Turn every `auto` query param into one live search per profile search term.
+
+    A source like `{ats_type: remotive, search: auto}` becomes one Remotive query for
+    each term in profile.yaml `jobs.search_terms` (+ titles saved in the dashboard);
+    `auto_local` uses the French/German `jobs.local_terms`. So what gets searched
+    follows the profile instead of search strings hard-coded in companies.yaml."""
+    queries = profile_store.job_queries(prefs)
+    local = profile_store.local_job_queries()
+    out: List[dict] = []
+    for company in companies:
+        key = next((k for k, v in company.items()
+                    if isinstance(v, str) and v in ("auto", "auto_local")), None)
+        if key is None:
+            out.append(company)
+            continue
+        terms = local if company[key] == "auto_local" else queries
+        for term in terms:
+            entry = dict(company)
+            entry[key] = term
+            entry["name"] = f"{company.get('name', company.get('ats_type'))}: {term}"
+            out.append(entry)
+    return out
+
+
 def harvest(conn, companies: Optional[List[dict]] = None, verbose: bool = True) -> dict:
-    companies = companies if companies is not None else load_companies()
     prefs = prefs_mod.load_structured()
-    extra_kw = prefs_mod.extra_keywords(prefs)
+    companies = expand_sources(companies if companies is not None else load_companies(), prefs)
+    extra_kw = ranking_terms(prefs)
     db.init_db(conn)
     summary = {"companies": 0, "fetched": 0, "kept": 0, "errors": []}
+    seen: set = set()
 
-    for company in companies:
+    # Network-bound: fetch every source concurrently, then process in order.
+    def _fetch(company: dict):
+        try:
+            return fetch_company(company), None
+        except Exception as e:  # noqa: BLE001 - one bad source must not abort the run
+            return None, e
+
+    with ThreadPoolExecutor(max_workers=_WORKERS) as pool:
+        results = list(pool.map(_fetch, companies))
+
+    for company, (raw, err) in zip(companies, results):
         name = company.get("name", "?")
         summary["companies"] += 1
-        try:
-            raw = fetch_company(company)
-        except Exception as e:  # noqa: BLE001 - one bad source must not abort the run
+        if err is not None:
+            e = err
             summary["errors"].append(f"{name} ({company.get('ats_type')}): {e}")
             if verbose:
                 print(f"  ! {name}: {e}", file=sys.stderr)
@@ -73,9 +123,12 @@ def harvest(conn, companies: Optional[List[dict]] = None, verbose: bool = True) 
         summary["fetched"] += len(raw)
         kept: List[Job] = []
         for job in raw:
+            if job.id in seen:      # the same posting returned by several queries
+                continue
             enrich(job, extra_kw)
             if keep(job, prefs):
                 kept.append(job)
+                seen.add(job.id)
 
         db.upsert_jobs(conn, kept)
         # Only single-company ATS boards own their full job set, so only they can

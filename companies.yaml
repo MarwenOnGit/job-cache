@@ -10,9 +10,9 @@
 #   companies:  curated single-company ATS boards (one slug == one employer). Weighted
 #               toward security vendors and consultancies that hire pentesters / red
 #               teamers / AppSec / cloud-security engineers and run internship programs.
-#   sources:    keyless aggregators (Remotive, Arbeitnow, Jobicy, Himalayas, RemoteOK,
-#               The Muse) tuned with security search terms — each fans out to hundreds
-#               of employers in one call. Role filtering (offensive_security, appsec,
+#   sources:    keyless aggregators (Remotive, Jobicy, Himalayas, Workable, RemoteOK,
+#               Arbeitnow, The Muse) searched live with the terms in profile/profile.yaml;
+#               each fans out to hundreds of employers. Role filtering (offensive_security, appsec,
 #               blue_team, cloud_grc, security_other) happens in the harvester, so even
 #               broad boards only keep security roles.
 
@@ -52,24 +52,32 @@ companies:
   - { name: "Nexthink",         ats_type: smartrecruiters, ats_slug: Nexthink,       hq_city: Geneva,     is_startup: true }
 
 sources:
-  # Remotive — free-text security searches (no dedicated security category).
-  - { name: "Remotive (Security)",   ats_type: remotive, aggregator: true, search: security,             limit: 200 }
-  - { name: "Remotive (Pentest)",    ats_type: remotive, aggregator: true, search: "penetration testing", limit: 100 }
-  - { name: "Remotive (SecOps)",     ats_type: remotive, aggregator: true, search: "security engineer",   limit: 100 }
+  # Keyless aggregators. A value of `auto` is replaced at harvest time by ONE LIVE
+  # SEARCH PER TERM in profile/profile.yaml -> jobs.search_terms (plus any job titles
+  # saved in the dashboard), so the search follows your profile instead of fixed
+  # strings here. `auto_local` uses jobs.local_terms (French / German postings).
 
-  # Arbeitnow — German/EU board; role filtering keeps only security roles.
-  - { name: "Arbeitnow (EU)",        ats_type: arbeitnow, aggregator: true, pages: 8 }
+  # Remotive: free-text search across remote roles.
+  - { name: "Remotive",           ats_type: remotive,        aggregator: true, search: auto, limit: 100 }
 
-  # Jobicy — remote board; tag-search on security terms.
-  - { name: "Jobicy (Security)",     ats_type: jobicy, aggregator: true, tag: security,     count: 50 }
-  - { name: "Jobicy (Cybersecurity)",ats_type: jobicy, aggregator: true, tag: cybersecurity, count: 50 }
+  # Jobicy: remote board, tag search.
+  - { name: "Jobicy",             ats_type: jobicy,          aggregator: true, tag: auto, count: 50 }
 
-  # Himalayas — remote board; many EU-eligible / worldwide roles (filtered to security).
-  - { name: "Himalayas",             ats_type: himalayas, aggregator: true, limit: 50, pages: 4 }
+  # Himalayas: keyword search endpoint (remote, many EU / worldwide-eligible roles).
+  - { name: "Himalayas",          ats_type: himalayas,       aggregator: true, q: auto, pages: 2 }
 
-  # RemoteOK — broad remote board (worldwide-eligible security roles are kept).
-  - { name: "RemoteOK",              ats_type: remoteok, aggregator: true }
+  # Workable: cross-employer search over every company hiring on Workable. Strong for
+  # European consultancies and scale-ups that post internships.
+  - { name: "Workable",           ats_type: workable_search, aggregator: true, query: auto, pages: 2 }
+  - { name: "Workable (FR/DE)",   ats_type: workable_search, aggregator: true, query: auto_local, pages: 1 }
 
-  # The Muse — general board; IT/engineering categories, filtered to security roles.
-  - { name: "The Muse (London)",     ats_type: themuse, aggregator: true, pages: 3, location: "London, United Kingdom", category: ["Computer and IT", "Software Engineering"] }
-  - { name: "The Muse (Remote)",     ats_type: themuse, aggregator: true, pages: 3, category: ["Computer and IT", "Software Engineering"] }
+  # RemoteOK: tag feeds (single-word tags are how RemoteOK indexes roles).
+  - { name: "RemoteOK (security)",      ats_type: remoteok, aggregator: true, tag: security }
+  - { name: "RemoteOK (cybersecurity)", ats_type: remoteok, aggregator: true, tag: cybersecurity }
+
+  # Arbeitnow: German/EU board with no search parameter; newest pages are walked and
+  # the harvester keeps only security roles.
+  - { name: "Arbeitnow (EU)",     ats_type: arbeitnow,       aggregator: true, pages: 8 }
+
+  # The Muse: IT / engineering categories, filtered to security roles.
+  - { name: "The Muse",           ats_type: themuse,         aggregator: true, pages: 3, category: ["Computer and IT", "Software Engineering"] }

@@ -1,0 +1,233 @@
+# Master's degrees, scholarships and internship programmes: the study side of the hunt.
+#
+# Two kinds of entries, both harvested into the same "Opportunities" view as jobs:
+#
+#   feeds:    LIVE searches. Each feed is a keyless RSS search URL with a {q} placeholder;
+#             `queries: auto` runs it once per term in profile/profile.yaml ->
+#             study.search_terms. New posts show up on every harvest, scored against your
+#             profile (field, eligibility, funding, deadline).
+#
+#   programs: Well-known, recurring programmes you should track every cycle. Each links to
+#             the OFFICIAL page. `deadline` is the usual month/day of the yearly call; the app
+#             works out the next one. Always confirm the exact date on the official page:
+#             calls move by a few weeks each year.
+#
+# Add, remove or edit anything freely. Feeds that stop answering are skipped and reported.
+
+feeds:
+  # WordPress-style search feeds (`?s=<query>&feed=rss2`) on long-running scholarship sites.
+  - { name: "Scholars4Dev",          url: "https://www.scholars4dev.com/?s={q}&feed=rss2",          queries: auto }
+  - { name: "Opportunity Desk",      url: "https://opportunitydesk.org/?s={q}&feed=rss2",           queries: auto }
+  - { name: "Opportunities for Africans", url: "https://www.opportunitiesforafricans.com/?s={q}&feed=rss2", queries: auto }
+  - { name: "After School Africa",   url: "https://www.afterschoolafrica.com/?s={q}&feed=rss2",     queries: auto }
+  - { name: "Opportunities Corners", url: "https://opportunitiescorners.com/?s={q}&feed=rss2",      queries: auto }
+
+programs:
+  # ---------------- Scholarships open to Tunisian students ----------------
+  - name: Erasmus Mundus Joint Master scholarships (cybersecurity programmes)
+    kind: scholarship
+    provider: European Commission (EACEA)
+    country: Europe (multi-country)
+    url: https://www.eacea.ec.europa.eu/scholarships/erasmus-mundus-catalogue_en
+    funding: Full tuition + monthly allowance, open to all nationalities
+    deadline: { month: 1, day: 15 }
+    summary: >-
+      Fully funded two-year joint master's run by university consortia across several EU
+      countries. Search the catalogue for cybersecurity / computer security programmes; each
+      consortium sets its own deadline, usually between November and February.
+    tags: [cybersecurity, computer science, fully funded, all nationalities]
+
+  - name: Eiffel Excellence Scholarship
+    kind: scholarship
+    provider: Campus France (French Ministry for Europe and Foreign Affairs)
+    country: France
+    url: https://www.campusfrance.org/en/eiffel-scholarship-program-of-excellence
+    funding: Monthly allowance + travel, health insurance; for master's and PhD in France
+    deadline: { month: 1, day: 10 }
+    summary: >-
+      Flagship French government scholarship for international master's students. You apply
+      through the French school or university that admits you; they nominate you, so start the
+      admission process in the autumn.
+    tags: [engineering, computer science, france, fully funded]
+
+  - name: DAAD scholarships for master's studies in Germany
+    kind: scholarship
+    provider: DAAD (German Academic Exchange Service)
+    country: Germany
+    url: https://www2.daad.de/deutschland/stipendium/datenbank/en/21148-scholarship-database/
+    funding: Monthly stipend, travel, insurance (varies by programme)
+    deadline: { month: 10, day: 31 }
+    summary: >-
+      DAAD's scholarship database, filterable by country of origin (Tunisia) and subject. Also
+      search DAAD's International Programmes database for English-taught IT security master's.
+    tags: [cybersecurity, computer science, germany]
+
+  - name: Chevening Scholarship
+    kind: scholarship
+    provider: UK Foreign, Commonwealth & Development Office
+    country: United Kingdom
+    url: https://www.chevening.org/scholarships/
+    funding: Full tuition, living allowance, flights for a one-year UK master's
+    deadline: { month: 11, day: 4 }
+    summary: >-
+      Fully funded one-year master's at any UK university. Tunisia is an eligible country.
+      Requires two years of work experience, so check whether your internships count before
+      applying.
+    tags: [cybersecurity, computer science, united kingdom, fully funded, tunisia]
+
+  - name: Fulbright Foreign Student Program (Tunisia)
+    kind: scholarship
+    provider: U.S. Department of State / U.S. Embassy Tunis
+    country: United States
+    url: https://tn.usembassy.gov/education-culture/
+    funding: Tuition, living stipend, travel, health insurance for a U.S. master's
+    deadline: { month: 5, day: 1 }
+    summary: >-
+      Graduate study in the United States for Tunisian citizens, administered through the
+      U.S. Embassy in Tunis / AMIDEAST. Calls usually open in spring for the following
+      academic year.
+    tags: [computer science, united states, fully funded, tunisia]
+
+  - name: ETH Zurich Excellence Scholarship & Opportunity Programme (ESOP)
+    kind: scholarship
+    provider: ETH Zurich
+    country: Switzerland
+    url: https://ethz.ch/en/studies/financial/scholarships/excellencescholarship.html
+    funding: Living and study costs + tuition waiver for the full master's
+    deadline: { month: 12, day: 15 }
+    summary: >-
+      Merit scholarship for outstanding master's applicants to ETH (MSc Cyber Security with
+      EPFL, MSc Computer Science). Applied for together with the master's application.
+    tags: [cybersecurity, computer science, switzerland, fully funded]
+
+  - name: EPFL Excellence Fellowships (master's)
+    kind: scholarship
+    provider: EPFL
+    country: Switzerland
+    url: https://www.epfl.ch/education/master/
+    funding: Stipend for the master's programme
+    deadline: { month: 12, day: 15 }
+    summary: >-
+      Merit fellowships for master's applicants to EPFL, including the joint ETH/EPFL MSc in
+      Cyber Security. Considered with the master's application (first round mid-December).
+    tags: [cybersecurity, computer science, switzerland]
+
+  - name: Swedish Institute Scholarships for Global Professionals
+    kind: scholarship
+    provider: Swedish Institute
+    country: Sweden
+    url: https://si.se/en/apply/scholarships/swedish-institute-scholarships-for-global-professionals/
+    funding: Tuition, living costs, travel grant, insurance
+    deadline: { month: 2, day: 20 }
+    summary: >-
+      Fully funded master's in Sweden for applicants from a list of eligible countries (check
+      whether Tunisia is on the current list). Requires prior work/leadership experience.
+    tags: [computer science, sweden, fully funded]
+
+  - name: Stipendium Hungaricum
+    kind: scholarship
+    provider: Tempus Public Foundation (Hungary)
+    country: Hungary
+    url: https://stipendiumhungaricum.hu/
+    funding: Tuition waiver, monthly stipend, housing, insurance
+    deadline: { month: 1, day: 15 }
+    summary: >-
+      Hungarian government scholarship for partner countries, which include Tunisia. Many
+      English-taught computer science master's (e.g. ELTE, BME) with security tracks.
+    tags: [computer science, hungary, fully funded, tunisia]
+
+  - name: Türkiye Scholarships (Türkiye Bursları)
+    kind: scholarship
+    provider: Presidency for Turks Abroad and Related Communities
+    country: Turkey
+    url: https://www.turkiyeburslari.gov.tr/
+    funding: Tuition, monthly stipend, accommodation, flights
+    deadline: { month: 2, day: 20 }
+    summary: Fully funded master's in Turkey, open to all nationalities.
+    tags: [computer science, fully funded, all nationalities]
+
+  - name: Global Korea Scholarship (GKS) for graduate studies
+    kind: scholarship
+    provider: NIIED (Korea)
+    country: South Korea
+    url: https://www.studyinkorea.go.kr/
+    funding: Tuition, stipend, flights, language year
+    deadline: { month: 3, day: 1 }
+    summary: Korean government scholarship for master's studies, via embassy or university track.
+    tags: [computer science, south korea, fully funded]
+
+  - name: MEXT Japanese Government Scholarship (research students)
+    kind: scholarship
+    provider: Japanese Ministry of Education (via Embassy of Japan in Tunisia)
+    country: Japan
+    url: https://www.studyinjapan.go.jp/en/planning/about-scholarship/
+    funding: Tuition, monthly stipend, flights
+    deadline: { month: 5, day: 31 }
+    summary: Embassy-recommended graduate scholarship; the embassy round usually opens in spring.
+    tags: [computer science, japan, fully funded]
+
+  # ---------------- Master's programmes worth applying to ----------------
+  - name: EIT Digital Master School (Cybersecurity)
+    kind: master
+    provider: EIT Digital
+    country: Europe (two countries)
+    url: https://masterschool.eitdigital.eu/
+    funding: Scholarships available for strong applicants
+    deadline: { month: 2, day: 1 }
+    summary: >-
+      Two-year double-degree master's with a Cybersecurity track split between two European
+      universities, with an entrepreneurship minor. Scholarship rounds usually close in winter.
+    tags: [cybersecurity, europe]
+
+  - name: MSc Cyber Security (TalTech & University of Tartu)
+    kind: master
+    provider: Tallinn University of Technology / University of Tartu
+    country: Estonia
+    url: https://taltech.ee/en/cyber-security
+    funding: Tuition-free study places available for top applicants
+    deadline: { month: 3, day: 1 }
+    summary: Joint English-taught cyber security master's in Estonia, with tuition-free places.
+    tags: [cybersecurity, estonia]
+
+  - name: MSc Cyber Security (ETH Zurich & EPFL)
+    kind: master
+    provider: ETH Zurich / EPFL
+    country: Switzerland
+    url: https://inf.ethz.ch/studies/master.html
+    funding: Low tuition; pair with ESOP / EPFL Excellence Fellowships
+    deadline: { month: 12, day: 15 }
+    summary: Joint two-school master's in cyber security, among the strongest in Europe.
+    tags: [cybersecurity, switzerland]
+
+  - name: Master Cybersecurity (Institut Polytechnique de Paris)
+    kind: master
+    provider: Institut Polytechnique de Paris (Télécom Paris, École Polytechnique, Télécom SudParis)
+    country: France
+    url: https://www.ip-paris.fr/en/education/masters
+    funding: Eligible for Eiffel and IP Paris scholarships
+    deadline: { month: 3, day: 1 }
+    summary: English-taught cybersecurity master's in Paris; several application rounds per year.
+    tags: [cybersecurity, france]
+
+  - name: Université Paris-Saclay International Master's Scholarships
+    kind: scholarship
+    provider: Université Paris-Saclay
+    country: France
+    url: https://www.universite-paris-saclay.fr/en/admission/bourses-et-aides-financieres
+    funding: Up to 10,000 EUR per year for the master's
+    deadline: { month: 3, day: 1 }
+    summary: Scholarships for international students admitted to Paris-Saclay master's, including computer science and security tracks.
+    tags: [cybersecurity, computer science, france]
+
+  # ---------------- Internship programmes (PFE abroad) ----------------
+  - name: IAESTE internships abroad
+    kind: internship_program
+    provider: IAESTE (Tunisian national committee)
+    country: Worldwide
+    url: https://iaeste.org/
+    funding: Paid internships with a living-cost-covering salary
+    deadline: { month: 1, day: 15 }
+    summary: >-
+      Paid technical internships abroad for engineering students, exchanged through national
+      committees; Tunisia has one. Offers are released in winter for the following summer.
+    tags: [internship, engineering, computer science, tunisia]

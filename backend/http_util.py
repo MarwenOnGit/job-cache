@@ -19,6 +19,15 @@ def get_json(url: str, timeout: int = 20, headers: Optional[dict] = None) -> Any
         return json.loads(resp.read().decode("utf-8"))
 
 
+def get_text(url: str, timeout: int = 20, headers: Optional[dict] = None) -> str:
+    """GET a text body (RSS/XML/HTML) and decode it as UTF-8."""
+    req = urllib.request.Request(url, headers={
+        "User-Agent": _UA, "Accept": "application/rss+xml, application/xml, text/xml, */*",
+        **(headers or {})})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return resp.read().decode("utf-8", errors="replace")
+
+
 def post_json(url: str, payload: dict, timeout: int = 20, headers: Optional[dict] = None) -> Any:
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
