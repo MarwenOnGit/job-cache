@@ -5,7 +5,8 @@ from typing import List
 
 from models import Job
 from adapters import (arbeitnow, ashby, greenhouse, himalayas, jobicy, lever,
-                      remoteok, remotive, smartrecruiters, themuse, workable, workday)
+                      remoteok, remotive, smartrecruiters, themuse, workable,
+                      workable_search, workday)
 
 # Single-company ATS boards: one slug == one employer.
 _COMPANY_ATS = {
@@ -25,6 +26,7 @@ _AGGREGATOR_ATS = {
     "himalayas": himalayas.fetch,
     "remoteok": remoteok.fetch,
     "themuse": themuse.fetch,
+    "workable_search": workable_search.fetch,
 }
 
 REGISTRY = {**_COMPANY_ATS, **_AGGREGATOR_ATS}

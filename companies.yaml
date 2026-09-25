@@ -1,139 +1,83 @@
-# Target companies for the harvester.
+# Target companies for the harvester — tuned for an OFFENSIVE-SECURITY / red-team
+# job hunt (PFE internships + junior roles), open to Europe, North America and remote.
+#
 # Each entry: name, ats_type (greenhouse|lever|ashby|smartrecruiters|workable|workday), ats_slug, hq_city, is_startup
 # ats_slug is the company's identifier on that ATS (the {slug} in the board URL).
-# Weighted toward Paris startups (best interview + visa odds). Easy to grow — add one line.
-# Entries that stop resolving are skipped at harvest time and reported in the errors summary.
+# Entries that stop resolving are skipped at harvest time and reported in the errors
+# summary — slugs below are best-effort, so prune anything that shows up as an error.
 #
 # Two kinds of sources:
-#   companies:  curated single-company ATS boards (one slug == one employer).
-#   sources:    keyless aggregators (Remotive, Arbeitnow, Jobicy, Himalayas, RemoteOK,
-#               The Muse) — each fans out to hundreds of employers in one call. This is
-#               the fast way to widen the search; the per-company list gives depth on
-#               the employers you specifically care about.
+#   companies:  curated single-company ATS boards (one slug == one employer). Weighted
+#               toward security vendors and consultancies that hire pentesters / red
+#               teamers / AppSec / cloud-security engineers and run internship programs.
+#   sources:    keyless aggregators (Remotive, Jobicy, Himalayas, Workable, RemoteOK,
+#               Arbeitnow, The Muse) searched live with the terms in profile/profile.yaml;
+#               each fans out to hundreds of employers. Role filtering (offensive_security, appsec,
+#               blue_team, cloud_grc, security_other) happens in the harvester, so even
+#               broad boards only keep security roles.
 
 companies:
-  # ---------------- Paris startups (AI / data / SaaS) ----------------
-  - { name: "Hugging Face",     ats_type: workable,       ats_slug: huggingface,    hq_city: Paris, is_startup: true }
-  - { name: "Dust",             ats_type: ashby,          ats_slug: dust,           hq_city: Paris, is_startup: true }
-  - { name: "PhotoRoom",        ats_type: ashby,          ats_slug: photoroom,      hq_city: Paris, is_startup: true }
-  - { name: "Poolside",         ats_type: ashby,          ats_slug: poolside,       hq_city: Paris, is_startup: true }
-  - { name: "Nabla",            ats_type: ashby,          ats_slug: nabla,          hq_city: Paris, is_startup: true }
-  - { name: "Pennylane",        ats_type: ashby,          ats_slug: pennylane,      hq_city: Paris, is_startup: true }
-  - { name: "Alan",             ats_type: ashby,          ats_slug: alan,           hq_city: Paris, is_startup: true }
-  - { name: "Sorare",           ats_type: ashby,          ats_slug: sorare,         hq_city: Paris, is_startup: true }
-  - { name: "Owkin",            ats_type: ashby,          ats_slug: owkin,          hq_city: Paris, is_startup: true }
-  - { name: "Sifflet",          ats_type: ashby,          ats_slug: sifflet,        hq_city: Paris, is_startup: true }
-  - { name: "Pigment",          ats_type: lever,          ats_slug: pigment,        hq_city: Paris, is_startup: true }
-  - { name: "Aircall",          ats_type: lever,          ats_slug: aircall,        hq_city: Paris, is_startup: true }
-  - { name: "Contentsquare",    ats_type: lever,          ats_slug: contentsquare,  hq_city: Paris, is_startup: true }
-  - { name: "Qonto",            ats_type: lever,          ats_slug: qonto,          hq_city: Paris, is_startup: true }
-  - { name: "Ledger",           ats_type: lever,          ats_slug: ledger,         hq_city: Paris, is_startup: true }
-  - { name: "360Learning",      ats_type: lever,          ats_slug: 360learning,    hq_city: Paris, is_startup: true }
-  - { name: "Swile",            ats_type: lever,          ats_slug: swile,          hq_city: Paris, is_startup: true }
-  - { name: "Doctolib",         ats_type: greenhouse,     ats_slug: doctolib,       hq_city: Paris, is_startup: true }
-  - { name: "Dataiku",          ats_type: greenhouse,     ats_slug: dataiku,        hq_city: Paris, is_startup: true }
-  - { name: "Mirakl",           ats_type: greenhouse,     ats_slug: mirakl,         hq_city: Paris, is_startup: true }
+  # ---------------- Security vendors / product security (Greenhouse) ----------------
+  - { name: "Cloudflare",       ats_type: greenhouse,      ats_slug: cloudflare,     hq_city: London,     is_startup: false }
+  - { name: "GitLab",           ats_type: greenhouse,      ats_slug: gitlab,         hq_city: Remote,     is_startup: false }
+  - { name: "Datadog",          ats_type: greenhouse,      ats_slug: datadog,        hq_city: Paris,      is_startup: false }
+  - { name: "Elastic",          ats_type: greenhouse,      ats_slug: elastic,        hq_city: Remote,     is_startup: false }
+  - { name: "Snyk",             ats_type: greenhouse,      ats_slug: snyk,           hq_city: London,     is_startup: true }
+  - { name: "HackerOne",        ats_type: greenhouse,      ats_slug: hackerone,      hq_city: Remote,     is_startup: true }
+  - { name: "Sysdig",           ats_type: greenhouse,      ats_slug: sysdig,         hq_city: Remote,     is_startup: true }
+  - { name: "Semgrep",          ats_type: greenhouse,      ats_slug: semgrep,        hq_city: Remote,     is_startup: true }
+  - { name: "Chainguard",       ats_type: greenhouse,      ats_slug: chainguard,     hq_city: Remote,     is_startup: true }
+  - { name: "Sonar (SonarSource)", ats_type: lever,        ats_slug: sonarsource,    hq_city: Geneva,     is_startup: true }
+  - { name: "Proton",           ats_type: greenhouse,      ats_slug: proton,         hq_city: Geneva,     is_startup: true }
+  - { name: "1Password",        ats_type: lever,           ats_slug: 1password,      hq_city: Remote,     is_startup: false }
+  - { name: "Doppler",          ats_type: ashby,           ats_slug: doppler,        hq_city: Remote,     is_startup: true }
+  - { name: "Wiz",              ats_type: greenhouse,      ats_slug: wiz,            hq_city: Remote,     is_startup: true }
+  - { name: "Aqua Security",    ats_type: greenhouse,      ats_slug: aquasecurity,   hq_city: Remote,     is_startup: true }
 
-  # ---------------- London ----------------
-  - { name: "Wayve",            ats_type: greenhouse,     ats_slug: wayve,          hq_city: London, is_startup: true }
-  - { name: "Synthesia",        ats_type: ashby,          ats_slug: synthesia,      hq_city: London, is_startup: true }
-  - { name: "ElevenLabs",       ats_type: ashby,          ats_slug: elevenlabs,     hq_city: London, is_startup: true }
-  - { name: "Monzo",            ats_type: greenhouse,     ats_slug: monzo,          hq_city: London, is_startup: true }
-  - { name: "Wise",             ats_type: smartrecruiters, ats_slug: Wise,          hq_city: London, is_startup: false }
-  - { name: "Cloudflare",       ats_type: greenhouse,     ats_slug: cloudflare,     hq_city: London, is_startup: false }
+  # ---------------- Offensive-security consultancies / pentest firms ----------------
+  - { name: "Synack",           ats_type: greenhouse,      ats_slug: synack,         hq_city: Remote,     is_startup: true }
+  - { name: "Bishop Fox",       ats_type: greenhouse,      ats_slug: bishopfox,      hq_city: Remote,     is_startup: true }
+  - { name: "SpecterOps",       ats_type: greenhouse,      ats_slug: specterops,     hq_city: Remote,     is_startup: true }
+  - { name: "Trail of Bits",    ats_type: lever,           ats_slug: trailofbits,    hq_city: Remote,     is_startup: true }
+  - { name: "NCC Group",        ats_type: workday,         ats_slug: "nccgroup.wd3.myworkdayjobs.com|nccgroup|NCC_Group_External_Careers", hq_city: London, is_startup: false }
+  - { name: "Praetorian",       ats_type: greenhouse,      ats_slug: praetorian,     hq_city: Remote,     is_startup: true }
+  - { name: "Include Security", ats_type: greenhouse,      ats_slug: includesecurity, hq_city: Remote,    is_startup: true }
+  - { name: "Doyensec",         ats_type: greenhouse,      ats_slug: doyensec,       hq_city: Remote,     is_startup: true }
 
-  # ---------------- Brussels / Belgium ----------------
-  - { name: "Collibra",         ats_type: greenhouse,     ats_slug: collibra,       hq_city: Brussels, is_startup: true }
+  # ---------------- Big tech with strong security orgs (EU offices) ----------------
+  - { name: "Stripe",           ats_type: greenhouse,      ats_slug: stripe,         hq_city: London,     is_startup: false }
+  - { name: "Databricks",       ats_type: greenhouse,      ats_slug: databricks,     hq_city: London,     is_startup: false }
+  - { name: "Figma",            ats_type: greenhouse,      ats_slug: figma,          hq_city: London,     is_startup: false }
+  - { name: "Wise",             ats_type: smartrecruiters, ats_slug: Wise,           hq_city: London,     is_startup: false }
+  - { name: "Nexthink",         ats_type: smartrecruiters, ats_slug: Nexthink,       hq_city: Geneva,     is_startup: true }
 
-  # ---------------- Geneva / Switzerland ----------------
-  - { name: "SonarSource",      ats_type: lever,          ats_slug: sonarsource,    hq_city: Geneva, is_startup: true }
-  - { name: "Nexthink",         ats_type: smartrecruiters, ats_slug: Nexthink,      hq_city: Geneva, is_startup: true }
-  - { name: "Proton",           ats_type: greenhouse,     ats_slug: proton,         hq_city: Geneva, is_startup: true }
-  - { name: "Scandit",          ats_type: greenhouse,     ats_slug: scandit,        hq_city: Geneva, is_startup: true }
-
-  # ---------------- Big AI / tech with EU offices (nice-to-have) ----------------
-  - { name: "Datadog",          ats_type: greenhouse,     ats_slug: datadog,        hq_city: Paris, is_startup: false }
-  - { name: "Stripe",           ats_type: greenhouse,     ats_slug: stripe,         hq_city: London, is_startup: false }
-  - { name: "Databricks",       ats_type: greenhouse,     ats_slug: databricks,     hq_city: London, is_startup: false }
-  - { name: "GitLab",           ats_type: greenhouse,     ats_slug: gitlab,         hq_city: London, is_startup: false }
-  - { name: "Elastic",          ats_type: greenhouse,     ats_slug: elastic,        hq_city: London, is_startup: false }
-  - { name: "Figma",            ats_type: greenhouse,     ats_slug: figma,          hq_city: London, is_startup: false }
-
-  # ---------------- More Paris / France startups ----------------
-  - { name: "Spendesk",         ats_type: lever,          ats_slug: spendesk,       hq_city: Paris, is_startup: true }
-  - { name: "PayFit",           ats_type: lever,          ats_slug: payfit,         hq_city: Paris, is_startup: true }
-  - { name: "Shift Technology", ats_type: lever,          ats_slug: shift-technology, hq_city: Paris, is_startup: true }
-  - { name: "Younited",         ats_type: lever,          ats_slug: younited,       hq_city: Paris, is_startup: true }
-  - { name: "iAdvize",          ats_type: lever,          ats_slug: iadvize,        hq_city: Paris, is_startup: true }
-  - { name: "Mangopay",         ats_type: lever,          ats_slug: mangopay,       hq_city: Paris, is_startup: true }
-  - { name: "Malt",             ats_type: greenhouse,     ats_slug: malt,           hq_city: Paris, is_startup: true }
-  - { name: "ManoMano",         ats_type: greenhouse,     ats_slug: manomano,       hq_city: Paris, is_startup: true }
-  - { name: "Back Market",      ats_type: greenhouse,     ats_slug: backmarket,     hq_city: Paris, is_startup: true }
-  - { name: "Ivalua",           ats_type: greenhouse,     ats_slug: ivalua,         hq_city: Paris, is_startup: true }
-  - { name: "Believe",          ats_type: smartrecruiters, ats_slug: Believe,       hq_city: Paris, is_startup: true }
-  - { name: "Veepee",           ats_type: smartrecruiters, ats_slug: Veepee,        hq_city: Paris, is_startup: true }
-
-  # ---------------- More London / UK ----------------
-  - { name: "Revolut",          ats_type: smartrecruiters, ats_slug: Revolut,       hq_city: London, is_startup: true }
-  - { name: "GoCardless",       ats_type: greenhouse,     ats_slug: gocardless,     hq_city: London, is_startup: true }
-  - { name: "Improbable",       ats_type: greenhouse,     ats_slug: improbable,     hq_city: London, is_startup: true }
-  - { name: "Deliveroo",        ats_type: greenhouse,     ats_slug: deliveroo,      hq_city: London, is_startup: false }
-  - { name: "Starling Bank",    ats_type: greenhouse,     ats_slug: starlingbank,   hq_city: London, is_startup: true }
-  - { name: "Snyk",             ats_type: greenhouse,     ats_slug: snyk,           hq_city: London, is_startup: true }
-  - { name: "Checkout.com",     ats_type: ashby,          ats_slug: checkout,       hq_city: London, is_startup: true }
-  - { name: "Onfido",           ats_type: greenhouse,     ats_slug: onfido,         hq_city: London, is_startup: true }
-
-  # ---------------- Amsterdam / Netherlands ----------------
-  - { name: "Adyen",            ats_type: greenhouse,     ats_slug: adyen,          hq_city: Amsterdam, is_startup: false }
-  - { name: "Mollie",           ats_type: greenhouse,     ats_slug: mollie,         hq_city: Amsterdam, is_startup: true }
-  - { name: "Miro",             ats_type: greenhouse,     ats_slug: miro,           hq_city: Amsterdam, is_startup: true }
-  - { name: "Bird",             ats_type: greenhouse,     ats_slug: bird,           hq_city: Amsterdam, is_startup: true }
-
-  # ---------------- Berlin / Germany ----------------
-  - { name: "N26",              ats_type: greenhouse,     ats_slug: n26,            hq_city: Berlin, is_startup: true }
-  - { name: "Trade Republic",   ats_type: greenhouse,     ats_slug: traderepublic,  hq_city: Berlin, is_startup: true }
-  - { name: "Celonis",          ats_type: greenhouse,     ats_slug: celonis,        hq_city: Munich, is_startup: true }
-  - { name: "Personio",         ats_type: greenhouse,     ats_slug: personio,       hq_city: Munich, is_startup: true }
-  - { name: "GetYourGuide",     ats_type: greenhouse,     ats_slug: getyourguide,   hq_city: Berlin, is_startup: true }
-
-  # ---------------- Barcelona / Madrid / Lisbon / Dublin ----------------
-  - { name: "TravelPerk",       ats_type: greenhouse,     ats_slug: travelperk,     hq_city: Barcelona, is_startup: true }
-  - { name: "Factorial",        ats_type: greenhouse,     ats_slug: factorialhr,    hq_city: Barcelona, is_startup: true }
-  - { name: "Remote",           ats_type: greenhouse,     ats_slug: remotecom,      hq_city: Lisbon, is_startup: true }
-  - { name: "Intercom",         ats_type: greenhouse,     ats_slug: intercom,       hq_city: Dublin, is_startup: true }
-
-  # ---------------- Remote-first (Europe eligible) ----------------
-  - { name: "Vercel",           ats_type: ashby,          ats_slug: vercel,         hq_city: Remote, is_startup: true }
-  - { name: "Supabase",         ats_type: ashby,          ats_slug: supabase,       hq_city: Remote, is_startup: true }
-  - { name: "Hex",              ats_type: greenhouse,     ats_slug: hex,            hq_city: Remote, is_startup: true }
-
-  # ---------------- Known but on unsupported ATS (left for reference; skipped) ----------------
-  # Mistral AI — custom careers site (no public ATS JSON as of validation)
-  # Welcome-to-the-Jungle-only French startups — no open JSON board
-
-# ============================================================================
-# Keyless aggregator sources. Each one call returns postings from MANY employers.
-# The harvester enriches + filters them exactly like company jobs (location must be
-# in your search preferences, role must map to a target family). Tune params to bias
-# toward Europe. Comment any out you don't want.
-# ============================================================================
 sources:
-  # Remotive — broad remote board. Pull the software + data categories.
-  - { name: "Remotive (Software)", ats_type: remotive, aggregator: true, category: software-dev, limit: 200 }
-  - { name: "Remotive (Data)",     ats_type: remotive, aggregator: true, category: data,         limit: 100 }
+  # Keyless aggregators. A value of `auto` is replaced at harvest time by ONE LIVE
+  # SEARCH PER TERM in profile/profile.yaml -> jobs.search_terms (plus any job titles
+  # saved in the dashboard), so the search follows your profile instead of fixed
+  # strings here. `auto_local` uses jobs.local_terms (French / German postings).
 
-  # Arbeitnow — German/EU board, skews strongly European. Walk a few pages.
-  - { name: "Arbeitnow (EU)",      ats_type: arbeitnow, aggregator: true, pages: 8 }
+  # Remotive: free-text search across remote roles.
+  - { name: "Remotive",           ats_type: remotive,        aggregator: true, search: auto, limit: 100 }
 
-  # Jobicy — remote board with a geo filter; keep it to Europe.
-  - { name: "Jobicy (Europe)",     ats_type: jobicy, aggregator: true, geo: europe, count: 50 }
+  # Jobicy: remote board, tag search.
+  - { name: "Jobicy",             ats_type: jobicy,          aggregator: true, tag: auto, count: 50 }
 
-  # Himalayas — remote board; many EU-eligible / worldwide roles.
-  - { name: "Himalayas",           ats_type: himalayas, aggregator: true, limit: 50, pages: 4 }
+  # Himalayas: keyword search endpoint (remote, many EU / worldwide-eligible roles).
+  - { name: "Himalayas",          ats_type: himalayas,       aggregator: true, q: auto, pages: 2 }
 
-  # RemoteOK — broad remote board (worldwide-eligible roles are kept).
-  - { name: "RemoteOK",            ats_type: remoteok, aggregator: true }
+  # Workable: cross-employer search over every company hiring on Workable. Strong for
+  # European consultancies and scale-ups that post internships.
+  - { name: "Workable",           ats_type: workable_search, aggregator: true, query: auto, pages: 2 }
+  - { name: "Workable (FR/DE)",   ats_type: workable_search, aggregator: true, query: auto_local, pages: 1 }
 
-  # The Muse — general board; bias to European hubs + engineering categories.
-  - { name: "The Muse (London)",   ats_type: themuse, aggregator: true, pages: 3, location: "London, United Kingdom", category: ["Software Engineering", "Data Science", "Data and Analytics"] }
-  - { name: "The Muse (Paris)",    ats_type: themuse, aggregator: true, pages: 3, location: "Paris, France",          category: ["Software Engineering", "Data Science", "Data and Analytics"] }
+  # RemoteOK: tag feeds (single-word tags are how RemoteOK indexes roles).
+  - { name: "RemoteOK (security)",      ats_type: remoteok, aggregator: true, tag: security }
+  - { name: "RemoteOK (cybersecurity)", ats_type: remoteok, aggregator: true, tag: cybersecurity }
+
+  # Arbeitnow: German/EU board with no search parameter; newest pages are walked and
+  # the harvester keeps only security roles.
+  - { name: "Arbeitnow (EU)",     ats_type: arbeitnow,       aggregator: true, pages: 8 }
+
+  # The Muse: IT / engineering categories, filtered to security roles.
+  - { name: "The Muse",           ats_type: themuse,         aggregator: true, pages: 3, category: ["Computer and IT", "Software Engineering"] }

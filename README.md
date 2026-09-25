@@ -1,11 +1,12 @@
 # job cache
 
-A local, **fully free** job-search + assisted-application tool for software / AI / data
-roles across **Europe** (Paris, London, Brussels, Amsterdam, Berlin, Dublin, Madrid,
-Barcelona and more, plus EU-eligible and worldwide remote). It aggregates real postings
-from free public job-board APIs, ranks them against your CV, and — with **no API keys and
-no paid services** — drafts tailored application materials using **Claude Code running in
-your terminal** as the AI engine.
+A local, **fully free** job-search + assisted-application tool tuned for
+**offensive-security / red-team** roles (pentest, red team, AppSec, cloud security,
+SOC/DFIR) — **PFE end-of-studies internships and junior roles** — across **Europe,
+North America, and remote worldwide**. It aggregates real postings from free public
+job-board APIs, ranks them against your CV, and — with **no API keys and no paid
+services** — drafts tailored application materials using an **AI coding agent running in
+your terminal** (**Claude Code** or **OpenCode**) as the engine.
 
 > Assisted apply, not auto-apply: the tool finds, ranks, and drafts; **you** review and
 > submit. No scraping of LinkedIn/Indeed, no bots, no bans.
@@ -20,7 +21,7 @@ Harvester (free)  →  SQLite  →  Dashboard  →  you select jobs  →  queue/
                                                             tailored bullets, fit analysis
 ```
 
-The "AI" is you running `claude` in this repo. The app and Claude Code talk through the
+The "AI" is you running `claude` (Claude Code) or `opencode` in this repo. The app and Claude Code talk through the
 `queue/` folder — so there's nothing to pay for and no key to manage.
 
 ## Quick start
@@ -41,9 +42,16 @@ your machine (see [Your data](#your-data)).
 Then:
 1. Browse / filter / sort ranked jobs.
 2. Click **Queue for Claude** on the ones you like.
-3. In a terminal in this repo: `claude`, then run `/apply`.
+3. In a terminal in this repo: `claude` (Claude Code) or `opencode`, then run `/apply`.
 4. Back in the dashboard, review the generated cover letter + CV bullets, click **Open
    apply page**, submit, and set the status.
+
+### Starting over
+
+`./reset.sh` wipes every harvested job, the decision log and the learned model, then
+searches again from `profile/profile.yaml`. Your CV, `preferences.md`, `applications/`
+and the queue are kept. (The first launch after this update does this once automatically.)
+Only internship, junior and mid-level roles asking for at most 3 years are stored.
 
 ## Data sources
 
@@ -51,7 +59,7 @@ Two complementary, entirely keyless layers, both configured in [`companies.yaml`
 
 - **Curated single-company ATS boards** — Greenhouse, Lever, Ashby, SmartRecruiters,
   Workable, and best-effort Workday — for the ~70 employers you specifically care about
-  (Paris-startup-weighted, plus London / Amsterdam / Berlin / etc.). Adding one is a single line.
+  (security vendors, pentest consultancies, and big-tech security orgs). Adding one is a single line.
 - **Keyless aggregators** — Remotive, Arbeitnow, Jobicy, Himalayas, RemoteOK, and The Muse.
   Each source fans out to *hundreds* of employers in one call, so the search is wide out of
   the box (a fresh harvest of just the aggregators pulls ~900 relevant EU/remote roles across

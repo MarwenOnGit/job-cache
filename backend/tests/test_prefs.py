@@ -11,12 +11,13 @@ class TestDefaults(unittest.TestCase):
         # An empty preference is the broadest search: every location + every family.
         self.assertEqual(prefs_mod.target_locations(prefs_mod.DEFAULTS), set(TARGET_CITIES))
         self.assertEqual(prefs_mod.target_role_families(prefs_mod.DEFAULTS),
-                         {"ai_agentic", "ai_ml", "data_eng", "swe"})
+                         {"offensive_security", "appsec", "blue_team", "cloud_grc",
+                          "security_other", "ai_ml", "swe"})
 
     def test_specific_selection(self):
-        prefs = {"locations": ["paris", "remote-eu"], "role_families": ["swe"]}
+        prefs = {"locations": ["paris", "remote-eu"], "role_families": ["offensive_security"]}
         self.assertEqual(prefs_mod.target_locations(prefs), {"paris", "remote-eu"})
-        self.assertEqual(prefs_mod.target_role_families(prefs), {"swe"})
+        self.assertEqual(prefs_mod.target_role_families(prefs), {"offensive_security"})
 
 
 class TestNormalize(unittest.TestCase):
@@ -47,7 +48,8 @@ class TestRoundTrip(unittest.TestCase):
             prefs_mod.PREFS_JSON_PATH = os.path.join(d, "preferences.json")
             try:
                 self.assertFalse(os.path.exists(prefs_mod.PREFS_JSON_PATH))
-                self.assertEqual(prefs_mod.load_structured(), prefs_mod.DEFAULTS)
+                # No saved file: the owner profile's defaults, not a blank search.
+                self.assertEqual(prefs_mod.load_structured(), prefs_mod.profile_defaults())
                 prefs_mod.save_structured({"locations": ["london"], "keywords": ["kafka"]})
                 loaded = prefs_mod.load_structured()
                 self.assertEqual(loaded["locations"], ["london"])

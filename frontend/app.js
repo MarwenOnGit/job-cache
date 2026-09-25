@@ -413,8 +413,8 @@ const LOCATION_OPTS = [
   ["eu-other", "Rest of Europe"], ["remote-eu", "Remote (EU)"], ["remote-global", "Remote (Worldwide)"],
 ];
 const CITY_LABEL = Object.fromEntries(LOCATION_OPTS);
-const ROLE_LABEL = { ai_agentic: "AI / Agentic", ai_ml: "AI / ML", data_eng: "Data Eng", swe: "Software Eng" };
-const JOBS_KW_CHIPS = ["Python", "Backend", "LLM", "RAG", "SQL", "Docker"];
+const ROLE_LABEL = { offensive_security: "Offensive Security", appsec: "AppSec", blue_team: "Blue Team / SOC", cloud_grc: "Cloud Sec / GRC", security_other: "Security Eng", ai_ml: "AI / ML", swe: "Software Eng" };
+const JOBS_KW_CHIPS = ["Pentest", "Red Team", "Internship", "Active Directory", "Azure", "Cloud", "AppSec", "Python"];
 
 // All jobs fetched for the current level filter (the only server-side toggle
 // left); everything else — city, keywords, sponsorship, company type, posted,
@@ -1681,7 +1681,7 @@ function openSettings() {
   };
 }
 const OB_CITIES = ["Paris", "London", "Brussels", "Geneva", "Remote (EU)"];
-const OB_ROLES = [["ai_agentic", "AI / Agentic"], ["ai_ml", "AI / ML"], ["data_eng", "Data Eng"], ["swe", "Software Eng"]];
+const OB_ROLES = [["offensive_security", "Offensive Security"], ["appsec", "AppSec"], ["blue_team", "Blue Team / SOC"], ["cloud_grc", "Cloud Sec / GRC"], ["security_other", "Security Eng"], ["ai_ml", "AI / ML"], ["swe", "Software Eng"]];
 const OB_EXP = [["0-1", "0-1 yrs"], ["1-3", "1-3 yrs"], ["3-5", "3-5 yrs"], ["5-8", "5-8 yrs"], ["8+", "8+ yrs"]];
 const OB_LANG = [["english", "English"], ["french", "French"], ["both", "Both"]];
 

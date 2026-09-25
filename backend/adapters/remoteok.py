@@ -2,12 +2,16 @@
 
 https://remoteok.com/api
 
+Optional source params:
+  tag: a RemoteOK tag (e.g. "security"); multi-word values are hyphenated.
+
 The response is a JSON array whose first element is a legal/metadata notice, not a
 job; it's skipped. RemoteOK prefers a browser-like User-Agent, so one is sent.
 """
 from __future__ import annotations
 
 from typing import List
+from urllib.parse import urlencode
 
 from http_util import get_json
 from models import Job
@@ -41,4 +45,7 @@ def parse(company: dict, payload: list) -> List[Job]:
 
 
 def fetch(company: dict) -> List[Job]:
-    return parse(company, get_json(BASE, headers=_HEADERS))
+    url = BASE
+    if company.get("tag"):
+        url = f"{BASE}?{urlencode({'tag': '-'.join(str(company['tag']).lower().split())})}"
+    return parse(company, get_json(url, headers=_HEADERS))

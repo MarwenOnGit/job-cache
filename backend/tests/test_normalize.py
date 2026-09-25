@@ -13,7 +13,9 @@ class TestCity(unittest.TestCase):
         self.assertEqual(classify_city("Zurich"), "geneva")
         self.assertEqual(classify_city("Remote - Europe"), "remote-eu")
         self.assertEqual(classify_city("Remote"), "remote-eu")
-        self.assertEqual(classify_city("New York, USA"), "other")
+        # North America is now kept (the user is open to roles abroad), not dropped.
+        self.assertEqual(classify_city("New York, USA"), "usa")
+        self.assertEqual(classify_city("Toronto, Canada"), "canada")
         self.assertEqual(classify_city(""), "other")
 
     def test_broadened_eu_hubs(self):
@@ -32,16 +34,24 @@ class TestCity(unittest.TestCase):
         self.assertEqual(classify_city("Anywhere"), "remote-global")
         self.assertEqual(classify_city("Remote, Worldwide"), "remote-global")
         self.assertEqual(classify_city("Remote (EU)"), "remote-eu")
-        self.assertEqual(classify_city("Remote - US only"), "other")
-        self.assertEqual(classify_city("Remote (USA)"), "other")
+        # US roles are now kept (the user is open to roles abroad), not dropped.
+        self.assertEqual(classify_city("Remote - US only"), "usa")
+        self.assertEqual(classify_city("Remote (USA)"), "usa")
 
 
 class TestRoleFamily(unittest.TestCase):
     def test_families(self):
+        # Offensive security is the core of this profile and wins over generic swe.
+        self.assertEqual(classify_role_family("Penetration Tester"), "offensive_security")
+        self.assertEqual(classify_role_family("Red Team Operator"), "offensive_security")
+        self.assertEqual(classify_role_family("Security Engineer, Red Team"), "offensive_security")
+        self.assertEqual(classify_role_family("Application Security Engineer"), "appsec")
+        self.assertEqual(classify_role_family("SOC Analyst"), "blue_team")
+        self.assertEqual(classify_role_family("Cloud Security Engineer"), "cloud_grc")
+        self.assertEqual(classify_role_family("Security Engineer"), "security_other")
+        # non-security roles still classify (kept low priority), non-tech is None
         self.assertEqual(classify_role_family("Software Engineer, Backend"), "swe")
-        self.assertEqual(classify_role_family("Data Engineer"), "data_eng")
         self.assertEqual(classify_role_family("Machine Learning Engineer"), "ai_ml")
-        self.assertEqual(classify_role_family("LLM / Agentic Systems Engineer"), "ai_agentic")
         self.assertIsNone(classify_role_family("Office Manager"))
         self.assertIsNone(classify_role_family("Account Executive"))
 

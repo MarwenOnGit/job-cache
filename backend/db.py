@@ -159,7 +159,7 @@ def _jobs_where(city: Optional[str] = None, role_family: Optional[str] = None,
     else:
         clauses.append(f"status NOT IN ({','.join('?' for _ in BROWSE_HIDDEN)})")
         params.extend(BROWSE_HIDDEN)
-    # Experience-fit filter (Sami has ~3 yrs; avoid senior + >5-year roles).
+    # Experience-fit filter: target internships/junior; hide senior + >5-year roles.
     if level == "suitable":
         clauses.append("(seniority IS NULL OR seniority IN ('junior','mid'))")
         clauses.append("(req_years IS NULL OR req_years<=5)")

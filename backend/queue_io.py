@@ -12,6 +12,7 @@ import os
 from typing import Optional, Set
 
 from normalize import slugify
+import profile_store
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PENDING_DIR = os.path.join(ROOT, "queue", "pending")
@@ -27,7 +28,7 @@ RESERVED = {"cover-letter", "cv"}  # non-job files inside a company folder
 
 INSTRUCTIONS = (
     "Group all pending jobs BY COMPANY. For each company write ONE applications/<slug>/"
-    "cover-letter.md reused across its roles (Sami's voice per preferences_markdown; personal, "
+    "cover-letter.md reused across its roles (the user's voice per preferences_markdown; personal, "
     "direct, no bullshit, 1-2 points max, ~120-200 words, match the job language). Only write "
     "applications/<slug>/cv.md if the base CV genuinely needs changes for that company; otherwise "
     "do not create it (the base CV is used as-is). For each job write applications/<slug>/"
@@ -38,8 +39,14 @@ INSTRUCTIONS = (
 
 
 def read_preferences() -> str:
-    """The user's preferences.md, falling back to the shipped example on a fresh clone."""
-    return _read(PREFS_PATH) or _read(PREFS_EXAMPLE_PATH)
+    """The user's preferences.md, falling back to the committed owner profile
+    (profile/preferences.md), then the shipped example on a fresh clone."""
+    return profile_store.preferences_markdown(PREFS_PATH, PREFS_EXAMPLE_PATH)
+
+
+def read_cv() -> str:
+    """The user's cv/cv.md, falling back to the committed owner profile (profile/cv.md)."""
+    return profile_store.cv_markdown(CV_PATH)
 
 
 # --- full personal export/import (CV, prefs, generated materials, onboarding) ---
@@ -102,7 +109,7 @@ def write_pending(job: dict) -> str:
     payload = {
         "job": job,
         "company_slug": slugify(job.get("company", "")),
-        "cv_markdown": _read(CV_PATH),
+        "cv_markdown": read_cv(),
         "preferences_markdown": read_preferences(),
         "instructions": INSTRUCTIONS,
     }
@@ -176,11 +183,11 @@ def _split_sections(note: str) -> dict:
 
 
 QUESTION_INSTRUCTIONS = (
-    "Sami is filling out a job application form and needs an answer to the application "
-    "question in `question`. Write ONE answer in Sami's voice, following preferences_markdown "
+    "The user is filling out a job application form and needs an answer to the application "
+    "question in `question`. Write ONE answer in the user's voice, following preferences_markdown "
     "strictly (first person, direct, confident, human, no bullshit, no em dashes, no defensive "
-    "hedging, do not name tools he hasn't used). Ground it in cv_markdown (real projects and "
-    "experience only, never invent). `references` lists the queued jobs Sami tagged with @ in his "
+    "hedging, do not name tools they haven't used). Ground it in cv_markdown (real projects and "
+    "experience only, never invent). `references` lists the queued jobs the user tagged with @ in their "
     "question (each with the job info AND any materials already generated for it: cover letter, "
     "short 'why apply' answer, fit summary). Use those references as context: tailor lightly to the "
     "tagged company/role, and if the question refers to existing material (e.g. 'rewrite this', "
@@ -209,7 +216,7 @@ def write_question_pending(qid: str, question: str, jobs) -> str:
         "question": question,
         "references": references,
         "companies": [r["company"] for r in references],
-        "cv_markdown": _read(CV_PATH),
+        "cv_markdown": read_cv(),
         "preferences_markdown": read_preferences(),
         "instructions": QUESTION_INSTRUCTIONS,
     }

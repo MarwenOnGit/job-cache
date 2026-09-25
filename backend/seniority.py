@@ -1,7 +1,7 @@
-"""Free heuristic seniority + required-years detection, to match Sami's ~3 years of experience.
+"""Free heuristic seniority + required-years detection for a final-year student.
 
-Sami: ~1 year full-time + engineering degree + internships (~3 yrs total). Target: roles up to
-~5 years required, NOT senior/staff/principal. These are hints for filtering, not hard truth.
+Target: PFE / end-of-studies internships and junior / graduate roles (up to ~5 years
+required), NOT senior/staff/principal. These are hints for filtering, not hard truth.
 """
 from __future__ import annotations
 
@@ -13,10 +13,17 @@ _SENIOR = [
     "director", "vp ", "vice president", "distinguished", "expert", "architect",
     "manager", "fellow",
 ]
-_JUNIOR = [
-    "junior", "jr.", "jr ", "graduate", "grad ", "entry", "entry-level", "intern",
-    "internship", "apprentice", "apprenti", "alternance", "working student", "trainee",
-    "stage", "stagiaire", "early career", "new grad",
+# End-of-studies internship signals (PFE = projet de fin d'études) rank alongside
+# other junior/graduate roles and, unlike senior titles, are never hidden.
+_INTERN = [
+    "intern", "internship", "stage", "stagiaire", "pfe", "projet de fin",
+    "fin d'études", "fin d'etudes", "end of studies", "end-of-studies",
+    "final year", "final-year", "working student", "apprentice", "apprenti",
+    "alternance", "alternant", "trainee", "co-op", "co op",
+]
+_JUNIOR = _INTERN + [
+    "junior", "jr.", "jr ", "graduate", "grad ", "entry", "entry-level",
+    "early career", "new grad", "débutant", "debutant",
 ]
 
 # "5+ years", "5 years", "3-5 years", "at least 4 years", "minimum 3 ans", "5 ans d'expérience"
@@ -24,6 +31,12 @@ _YEARS_RE = re.compile(
     r"(\d{1,2})\s*(?:\+|-\s*\d{1,2})?\s*(?:years|year|yrs|ans|année|annees|années)",
     re.IGNORECASE,
 )
+
+
+def is_internship(title: str, description: str = "") -> bool:
+    """True when the posting is an internship / PFE / end-of-studies role."""
+    hay = f" {(title or '').lower()} \n {(description or '').lower()} "
+    return any(k in hay for k in _INTERN)
 
 
 def classify_seniority(title: str, description: str = "") -> str:

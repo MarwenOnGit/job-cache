@@ -1,0 +1,87 @@
+# The owner's saved search profile: the app's memory of who you are and what you're
+# hunting for. Everything here is loaded on every run, so the dashboard never has to ask
+# again. Edit it by hand, or change search preferences in the dashboard (Profile ->
+# Search preferences), which saves an override to data/preferences.json.
+#
+# Contact details are NOT stored here (this file is committed). Keep those in the
+# gitignored cv/cv.md.
+
+name: Marouan Ben Hmed
+headline: Offensive Security Engineer & Tooling Developer
+based_in: Tunis, Tunisia
+# Used only to match scholarship eligibility (e.g. "open to African / MENA nationals").
+# Never written into anything an employer reads.
+nationality: Tunisia
+languages: [arabic, french, english]
+education:
+  degree: Engineering Degree in Computer Science (final year)
+  school: National Engineering School of Tunis (ENIT)
+  graduation: 2027
+
+# --- Jobs & internships -----------------------------------------------------
+jobs:
+  # What gets searched on every harvest. Each term is sent as a live query to every
+  # search-capable board (Remotive, Jobicy, Himalayas, RemoteOK, Workable).
+  search_terms:
+    - penetration testing
+    - red team
+    - offensive security
+    - security engineer intern
+    - cybersecurity internship
+    - cloud security
+    - application security
+    - security researcher
+  # Extra terms for boards whose results are mostly French / German postings.
+  local_terms:
+    - stage cybersécurité
+    - stage pentest
+    - stage fin d'études sécurité
+    - Werkstudent IT-Sicherheit
+    - Praktikum Cyber Security
+  # Default role families kept by the harvester (see normalize.ROLE_FAMILIES).
+  role_families: [offensive_security, appsec, cloud_grc, security_other, blue_team]
+  # Titles that are boosted in ranking.
+  titles:
+    - Penetration Tester
+    - Red Team Operator
+    - Offensive Security Engineer
+    - Cloud Security Engineer
+    - Security Engineer
+    - Application Security Engineer
+  # Seniority you are hunting for. The PFE (end-of-studies internship) runs Feb - Jun 2027.
+  seniority: [internship, junior]
+  experience: "0-1"
+  # Empty = every location the app knows (Europe, North America, remote). You want abroad.
+  locations: []
+  cover_letter_language: both
+
+# --- Master's degrees & scholarships ------------------------------------------
+study:
+  # What gets searched on the scholarship / master's feeds.
+  search_terms:
+    - cybersecurity master scholarship
+    - cyber security masters
+    - computer science masters scholarship
+    - fully funded masters
+    - Erasmus Mundus
+    - scholarships for Tunisian students
+    - scholarships for African students
+  # Fields that make an opportunity relevant to you.
+  fields:
+    - cybersecurity
+    - cyber security
+    - information security
+    - computer security
+    - computer science
+    - informatics
+    - computer engineering
+    - engineering
+    - stem
+    - all fields
+    - any field
+  levels: [master, internship_program, scholarship, fellowship]
+  start: "2027"
+  # Preferred study destinations (used for ranking, not filtering).
+  countries: [France, Germany, Switzerland, Netherlands, Belgium, Luxembourg, Estonia, Sweden,
+              Finland, Italy, Spain, Ireland, United Kingdom, Canada, United States, Japan,
+              South Korea, Hungary, Czech Republic, Poland, Austria]

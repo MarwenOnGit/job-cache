@@ -147,7 +147,7 @@ class TestQueue(unittest.TestCase):
         queue_io.CV_PATH = os.path.join(self.tmp, "cv.md")
         queue_io.PREFS_PATH = os.path.join(self.tmp, "preferences.md")
         with open(queue_io.CV_PATH, "w", encoding="utf-8") as f:
-            f.write("# Sami\nPython, Spark")
+            f.write("# Marouan\nPython, Bash")
         with open(queue_io.PREFS_PATH, "w", encoding="utf-8") as f:
             f.write("voice rules")
 

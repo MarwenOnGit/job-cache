@@ -1,14 +1,14 @@
-"""Preference-learning model — learns Sami's taste from his own decisions.
+"""Preference-learning model — learns the user's taste from their own decisions.
 
 Pure stdlib, no numpy/sklearn (so a friend who clones the repo needs zero setup).
 It's a smoothed log-odds (naive-Bayes-flavoured) model: for every feature value it
-compares how often that value shows up in jobs Sami *pursued* vs jobs he *rejected*,
+compares how often that value shows up in jobs the user *pursued* vs jobs they *rejected*,
 and turns that into a weight. A job's "for you" score is the logistic of the sum of
 its feature weights. Everything is explainable — every score comes with the exact
 features that pushed it up or down.
 
 Training signal comes straight from the jobs table (current decisions), so it works
-even before any event history exists, and gets sharper every time Sami acts.
+even before any event history exists, and gets sharper every time the user acts.
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from typing import Dict, List, Optional, Tuple
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_PATH = os.path.join(ROOT, "data", "model.json")
 
-# What counts as Sami pursuing vs rejecting a job.
+# What counts as the user pursuing vs rejecting a job.
 POSITIVE_STATUS = {"queued", "materials_ready", "applied", "interview", "offer"}
 NEGATIVE_STATUS = {"dismissed", "rejected"}
 # "closed" = the posting vanished from the ATS, not a decision → never a training label.
@@ -233,7 +233,7 @@ def blended_score(job: dict, model: dict, learned: Optional[float] = None) -> fl
 # Training re-tokenizes every job's title+description and writes model.json to
 # disk — real work, not free. Every page load used to call load() 2-3 times
 # (jobs/stats/insights all fire in parallel) and every one of those retrained
-# from scratch, even though nothing about Sami's decisions had changed since
+# from scratch, even though nothing about the user's decisions had changed since
 # the last request. Cache the trained model in memory and only retrain when a
 # decision actually changes (queue/dismiss/star/status/harvest/import) —
 # invalidate() is called from those spots in app.py.

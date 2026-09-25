@@ -1,6 +1,22 @@
-{"data": [
-  {"slug": "data-engineer-berlin-co", "company_name": "Berlin Co", "title": "Data Engineer",
-   "description": "<p>Build ETL pipelines with Spark and Kafka.</p>", "remote": true,
-   "url": "https://arbeitnow.com/jobs/x", "tags": ["data"], "job_types": ["full_time"],
-   "location": "Berlin", "created_at": 1756000000}
-], "links": {}, "meta": {}}
+{
+  "data": [
+    {
+      "slug": "data-engineer-berlin-co",
+      "company_name": "Berlin Co",
+      "title": "Security Engineer",
+      "description": "<p>Application security engineering and secure code review.</p>",
+      "remote": true,
+      "url": "https://arbeitnow.com/jobs/x",
+      "tags": [
+        "security"
+      ],
+      "job_types": [
+        "full_time"
+      ],
+      "location": "Berlin",
+      "created_at": 1756000000
+    }
+  ],
+  "links": {},
+  "meta": {}
+}

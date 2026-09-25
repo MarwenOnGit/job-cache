@@ -25,6 +25,7 @@ import tracker
 import harvester
 import learn
 import prefs as prefs_mod
+import profile_store
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND_DIR = os.path.join(ROOT, "frontend")
@@ -425,8 +426,8 @@ def applications_csv():
 # --- profile + config -------------------------------------------------------
 @app.get("/api/profile")
 def profile():
-    return {"cv": queue_io._read(queue_io.CV_PATH),
-            "preferences": queue_io._read(queue_io.PREFS_PATH),
+    return {"cv": queue_io.read_cv(),
+            "preferences": queue_io.read_preferences(),
             "preferences_effective": queue_io.read_preferences()}
 
 
@@ -478,7 +479,8 @@ def _read_config() -> dict:
 @app.get("/api/config")
 def get_config():
     cfg = _read_config()
-    cfg.setdefault("owner_name", "")
+    if not cfg.get("owner_name"):
+        cfg["owner_name"] = profile_store.owner_name()
     cfg.setdefault("theme", "dark")
     return cfg
 
@@ -508,13 +510,13 @@ class OnboardingBody(BaseModel):
 
 
 def _prefs_ready() -> bool:
-    return bool(queue_io._read(queue_io.PREFS_PATH).strip())
+    return bool(queue_io._read(queue_io.PREFS_PATH).strip()) or profile_store.has_saved_profile()
 
 
 @app.get("/api/onboarding")
 def get_onboarding():
     """Whether the user still needs to onboard, and their saved form (if any)."""
-    cv = queue_io._read(queue_io.CV_PATH).strip()
+    cv = queue_io.read_cv().strip()
     return {"has_cv": bool(cv), "preferences_ready": _prefs_ready(),
             "onboarding": queue_io.read_onboarding(),
             "needs_onboarding": not (cv and _prefs_ready())}
@@ -670,7 +672,7 @@ def export_all():
     try:
         return JSONResponse({
             "version": 2,
-            "profile": {"cv": queue_io._read(queue_io.CV_PATH),
+            "profile": {"cv": queue_io.read_cv(),
                         "preferences": queue_io.read_preferences()},
             "config": _read_config(),
             "onboarding": queue_io.read_onboarding(),

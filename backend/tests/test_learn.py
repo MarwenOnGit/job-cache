@@ -37,13 +37,13 @@ class TestTokens(unittest.TestCase):
 
 
 class TestKeywordDamping(unittest.TestCase):
-    """The exact scenario Sami described: dismissing a lot of one repeated
+    """The exact scenario the user described: dismissing a lot of one repeated
     title shouldn't tank the score of an unrelated job that merely shares a
     common word with it."""
 
     def _train_sre_dismissals(self, n):
         jobs = [_job(f"neg{i}", "Site Reliability Engineer", status="dismissed") for i in range(n)]
-        # A handful of unrelated jobs Sami actually pursued, to give the
+        # A handful of unrelated jobs the user actually pursued, to give the
         # model a base rate and make it "ready".
         jobs += [_job(f"pos{i}", "AI Engineer", status="applied") for i in range(3)]
         return learn.train(jobs)

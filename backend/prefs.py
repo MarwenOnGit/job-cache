@@ -7,8 +7,8 @@ This module is the *search* side: where you want to work, what you want to do.
 Storage: data/preferences.json. When that file doesn't exist yet, the API seeds a
 view from the onboarding form (data/onboarding.json) so a new user sees their
 onboarding choices pre-filled and editable — no need to re-run onboarding to change
-a country or add a keyword. The harvester itself treats a missing file (and any
-empty field) as "no restriction", i.e. the broadest possible search.
+a country or add a keyword. With no saved file, the harvester uses the owner profile's
+defaults (profile/profile.yaml); any empty field means "no restriction".
 """
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ import json
 import os
 from typing import List
 
+import profile_store
 from normalize import (LOCATION_LABELS, ROLE_FAMILIES, TARGET_CITIES,
                        classify_city)
 
@@ -34,10 +35,13 @@ DEFAULTS = {
 }
 
 ROLE_FAMILY_LABELS = [
-    ("ai_agentic", "AI / Agentic (LLMs, RAG, agents)"),
-    ("ai_ml", "AI / ML (ML, data science, CV, NLP)"),
-    ("data_eng", "Data Engineering"),
-    ("swe", "Software Engineering"),
+    ("offensive_security", "Offensive Security (pentest, red team, vuln research)"),
+    ("appsec", "Application / Product Security"),
+    ("blue_team", "Blue Team / SOC / DFIR"),
+    ("cloud_grc", "Cloud Security / DevSecOps / GRC"),
+    ("security_other", "Security Engineering (general)"),
+    ("ai_ml", "AI / ML (adjacent, optional)"),
+    ("swe", "Software Engineering (adjacent, optional)"),
 ]
 _ROLE_FAMILY_KEYS = {k for k, _ in ROLE_FAMILY_LABELS}
 
@@ -75,11 +79,18 @@ def _normalize(raw: dict) -> dict:
     return prefs
 
 
+def profile_defaults() -> dict:
+    """Search preferences implied by the committed owner profile (profile/profile.yaml),
+    or the all-inclusive DEFAULTS when there is no profile."""
+    return _normalize(profile_store.default_search_prefs())
+
+
 def load_structured() -> dict:
-    """The user's saved search preferences, or the all-inclusive DEFAULTS."""
+    """The user's saved search preferences; else the owner profile's defaults (so a
+    fresh clone searches for the right things without asking)."""
     if os.path.exists(PREFS_JSON_PATH):
         return _normalize(_read_json(PREFS_JSON_PATH))
-    return dict(DEFAULTS)
+    return profile_defaults()
 
 
 def seed_from_onboarding() -> dict:
@@ -113,7 +124,9 @@ def load_or_seed() -> dict:
     """Saved prefs if present; otherwise a view seeded from onboarding (not persisted)."""
     if os.path.exists(PREFS_JSON_PATH):
         return load_structured()
-    return seed_from_onboarding()
+    if os.path.exists(ONBOARDING_PATH):
+        return seed_from_onboarding()
+    return profile_defaults()
 
 
 def save_structured(raw: dict) -> dict:
