@@ -3,7 +3,7 @@
 > Originally shipped as "job-hunter"; renamed to **job cache**.
 
 **Date:** 2026-09-11
-**Owner:** Sami Masmoudi
+**Owner:** Marouan Ben Hmed
 **Status:** Approved design → ready for implementation plan
 
 ## 1. Purpose

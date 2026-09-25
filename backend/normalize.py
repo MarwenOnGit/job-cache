@@ -53,6 +53,14 @@ _CITY_PATTERNS = [
                   "praha", "czech", "budapest", "hungary", "athens", "greece", "luxembourg",
                   "tallinn", "estonia", "vilnius", "lithuania", "bucharest", "romania",
                   "sofia", "bulgaria"]),
+    # --- North America (kept: the user is open to roles abroad, not EU-only) ---
+    ("usa", ["united states", " usa", "(usa", "u.s.a", "u.s.", ", us", "(us)", "us-based",
+             "us based", "new york", "san francisco", "seattle", "austin", "boston", "washington",
+             "chicago", "los angeles", "denver", "atlanta", "remote us", "remote - us",
+             "california", "texas", "virginia", "maryland", "florida", "north america"]),
+    ("canada", ["canada", "toronto", "vancouver", "montreal", "montréal", "ottawa", "canadian"]),
+    ("americas-other", ["brazil", "brasil", "mexico", "méxico", "argentina", "latam",
+                        "latin america", "colombia", "chile", "são paulo", "sao paulo"]),
 ]
 
 # Human labels + a stable display order for every canonical bucket. Single source
@@ -86,6 +94,9 @@ LOCATION_LABELS = [
     ("denmark", "Denmark"),
     ("poland", "Poland"),
     ("eu-other", "Rest of Europe"),
+    ("usa", "United States"),
+    ("canada", "Canada"),
+    ("americas-other", "Latin America (other)"),
     ("remote-eu", "Remote (EU eligible)"),
     ("remote-global", "Remote (Worldwide)"),
 ]
@@ -109,16 +120,47 @@ _NON_EU_HINTS = ["united states", " usa", "(usa", "u.s.", ", us", "(us)", "us on
                  "united arab", "uae", "americas only", "north america"]
 
 # --- Role families ----------------------------------------------------------
-# Ordered by priority: first family whose keywords hit wins the label.
+# Ordered by priority: first family whose keywords hit wins the label. Offensive
+# security is first so a "Security Engineer, Red Team" reads as offensive_security,
+# not swe. Tuned for an offensive-security / red-team profile (see cv/cv.md).
 ROLE_FAMILIES = [
-    ("ai_agentic", ["llm", "large language model", "agentic", "ai agent", "generative ai",
-                     "gen ai", "genai", "rag", "prompt", "foundation model"]),
+    ("offensive_security", [
+        "penetration test", "penetration tester", "pentest", "pen test", "pen tester",
+        "red team", "red-team", "red teamer", "offensive security", "offensive security engineer",
+        "ethical hacker", "ethical hacking", "vulnerability research", "vulnerability researcher",
+        "exploit development", "exploit developer", "adversary emulation", "adversary simulation",
+        "purple team", "purple-team", "security researcher", "reverse engineer", "reverse engineering",
+        "bug bounty", "offensive engineer", "attack simulation", "breach and attack",
+        "test d'intrusion", "testeur d'intrusion", "pentesteur", "red teaming",
+    ]),
+    ("appsec", [
+        "application security", "appsec", "product security", "prodsec", "secure code review",
+        "software security engineer", "security code review", "sast", "dast", "sdlc security",
+        "security champion", "appsec engineer", "web application security", "api security",
+    ]),
+    ("blue_team", [
+        "soc analyst", "security operations", "blue team", "blue-team", "threat hunting",
+        "threat hunter", "incident response", "incident responder", "dfir", "digital forensics",
+        "detection engineer", "detection engineering", "threat intelligence", "threat intel",
+        "malware analyst", "security analyst", "csirt", "cert analyst", "siem",
+        "analyste soc", "réponse à incident", "reponse a incident",
+    ]),
+    ("cloud_grc", [
+        "cloud security", "devsecops", "devsec", "security engineer, cloud", "iam engineer",
+        "identity and access", "kubernetes security", "container security", "security architect",
+        "grc", "governance risk", "risk and compliance", "security compliance", "security audit",
+        "iso 27001", "soc 2", "security consultant", "cybersecurity consultant",
+        "sécurité cloud", "ingénieur sécurité", "consultant cybersécurité", "cybersécurité",
+    ]),
+    # General security net: catches "security engineer / cybersecurity" titles that
+    # didn't hit a more specific family above, before falling through to non-security roles.
+    ("security_other", [
+        "security engineer", "cyber security", "cybersecurity", "information security",
+        "infosec", "security specialist", "network security", "sécurité informatique",
+        "sécurité des systèmes", "cybersécurité",
+    ]),
     ("ai_ml", ["machine learning", " ml ", "ml engineer", "mlops", "deep learning", "nlp",
-               "computer vision", "data scientist", "research scientist", "ai engineer",
-               "artificial intelligence", "recommendation", "ranking"]),
-    ("data_eng", ["data engineer", "data engineering", "etl", "elt", "spark", "kafka",
-                  "airflow", "data platform", "analytics engineer", "data pipeline",
-                  "data infrastructure", "warehouse", "databricks"]),
+               "data scientist", "ai engineer", "artificial intelligence", "llm", "rag"]),
     ("swe", ["software engineer", "software developer", "backend", "back-end", "back end",
              "frontend", "front-end", "front end", "full stack", "full-stack", "fullstack",
              "developer", "sde", "platform engineer", "web engineer", "python engineer"]),
@@ -193,9 +235,10 @@ def classify_city(location_raw: Optional[str]) -> str:
         return "remote-eu"
     is_remote = any(h in loc for h in _REMOTE_HINTS)
     if is_remote:
-        # A remote role pinned to a non-EU region is out of reach — drop it.
+        # The user is open to roles abroad (Europe + Americas + worldwide), so a
+        # remote role pinned to a non-EU region is kept as worldwide, not dropped.
         if any(h in padded for h in _NON_EU_HINTS):
-            return "other"
+            return "remote-global"
         if any(h in padded for h in _EU_HINTS):
             return "remote-eu"
         if loc.strip() in ("remote", "fully remote", "100% remote", "remote work"):

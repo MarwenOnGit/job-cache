@@ -12,8 +12,8 @@ Install and run the job cache app on this laptop, end to end. Do this:
    at http://localhost:8000 (opening the browser automatically).
 3. If port 8000 is busy, run `PORT=8080 ./run.sh` instead.
 4. Tell the user: browse jobs, click **Queue for Claude** on the ones they like, then
-   run `/apply` in Claude Code to generate tailored cover letters + CV bullets, which
-   appear back in the dashboard.
+   run `/apply` in their coding agent (Claude Code `claude`, or OpenCode `opencode`) to
+   generate tailored cover letters + CV bullets, which appear back in the dashboard.
 
 If `./run.sh` fails, run `./install.sh` first to surface the dependency error, fix it,
 then retry `./run.sh`. Never require any API key — there are none.

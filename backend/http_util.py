@@ -10,7 +10,7 @@ import urllib.request
 from typing import Any, Optional, Tuple
 from urllib.parse import urlparse
 
-_UA = "job-cache/1.0 (+https://github.com/samiimasmoudii)"
+_UA = "job-cache/1.0 (+https://github.com/MarwenOnGit/job-cache)"
 
 
 def get_json(url: str, timeout: int = 20, headers: Optional[dict] = None) -> Any:

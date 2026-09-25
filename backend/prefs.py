@@ -34,10 +34,13 @@ DEFAULTS = {
 }
 
 ROLE_FAMILY_LABELS = [
-    ("ai_agentic", "AI / Agentic (LLMs, RAG, agents)"),
-    ("ai_ml", "AI / ML (ML, data science, CV, NLP)"),
-    ("data_eng", "Data Engineering"),
-    ("swe", "Software Engineering"),
+    ("offensive_security", "Offensive Security (pentest, red team, vuln research)"),
+    ("appsec", "Application / Product Security"),
+    ("blue_team", "Blue Team / SOC / DFIR"),
+    ("cloud_grc", "Cloud Security / DevSecOps / GRC"),
+    ("security_other", "Security Engineering (general)"),
+    ("ai_ml", "AI / ML (adjacent, optional)"),
+    ("swe", "Software Engineering (adjacent, optional)"),
 ]
 _ROLE_FAMILY_KEYS = {k for k, _ in ROLE_FAMILY_LABELS}
 

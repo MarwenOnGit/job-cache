@@ -34,9 +34,9 @@ class TestLever(unittest.TestCase):
         jobs = lever.parse(company, load("lever.json"))
         self.assertEqual(len(jobs), 1)
         j = jobs[0]
-        self.assertEqual(j.title, "Data Engineer")
+        self.assertEqual(j.title, "Penetration Tester")
         self.assertEqual(j.location_raw, "London, UK")
-        self.assertIn("ETL pipelines", j.description)
+        self.assertIn("penetration tests", j.description)
         self.assertEqual(j.posted_at, "1756000000000")
 
 
@@ -88,7 +88,7 @@ class TestEnrichAndKeep(unittest.TestCase):
         j = lever.parse(company, load("lever.json"))[0]
         harvester.enrich(j)
         self.assertEqual(j.city, "london")
-        self.assertEqual(j.role_family, "data_eng")
+        self.assertEqual(j.role_family, "offensive_security")
         self.assertEqual(j.sponsorship, "no_sponsorship")
         self.assertTrue(harvester.keep(j))
 

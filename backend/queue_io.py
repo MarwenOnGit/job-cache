@@ -27,7 +27,7 @@ RESERVED = {"cover-letter", "cv"}  # non-job files inside a company folder
 
 INSTRUCTIONS = (
     "Group all pending jobs BY COMPANY. For each company write ONE applications/<slug>/"
-    "cover-letter.md reused across its roles (Sami's voice per preferences_markdown; personal, "
+    "cover-letter.md reused across its roles (the user's voice per preferences_markdown; personal, "
     "direct, no bullshit, 1-2 points max, ~120-200 words, match the job language). Only write "
     "applications/<slug>/cv.md if the base CV genuinely needs changes for that company; otherwise "
     "do not create it (the base CV is used as-is). For each job write applications/<slug>/"
@@ -176,11 +176,11 @@ def _split_sections(note: str) -> dict:
 
 
 QUESTION_INSTRUCTIONS = (
-    "Sami is filling out a job application form and needs an answer to the application "
-    "question in `question`. Write ONE answer in Sami's voice, following preferences_markdown "
+    "The user is filling out a job application form and needs an answer to the application "
+    "question in `question`. Write ONE answer in the user's voice, following preferences_markdown "
     "strictly (first person, direct, confident, human, no bullshit, no em dashes, no defensive "
-    "hedging, do not name tools he hasn't used). Ground it in cv_markdown (real projects and "
-    "experience only, never invent). `references` lists the queued jobs Sami tagged with @ in his "
+    "hedging, do not name tools they haven't used). Ground it in cv_markdown (real projects and "
+    "experience only, never invent). `references` lists the queued jobs the user tagged with @ in their "
     "question (each with the job info AND any materials already generated for it: cover letter, "
     "short 'why apply' answer, fit summary). Use those references as context: tailor lightly to the "
     "tagged company/role, and if the question refers to existing material (e.g. 'rewrite this', "

@@ -39,7 +39,7 @@ class TestArbeitnow(unittest.TestCase):
         self.assertEqual(j.apply_url, "https://arbeitnow.com/jobs/x")  # no link in body -> listing page
         harvester.enrich(j)
         self.assertEqual(j.city, "berlin")                  # specific city wins over remote
-        self.assertEqual(j.role_family, "data_eng")
+        self.assertEqual(j.role_family, "appsec")
         self.assertTrue(harvester.keep(j))
 
     def test_prefers_the_real_apply_link_from_the_posting(self):

@@ -9,15 +9,26 @@ from datetime import datetime, timezone
 from typing import List, Optional, Tuple
 
 from normalize import classify_role_family, title_matches_family
+from seniority import is_internship
 
 # Skills drawn from the CV (see cv/cv.md). Multi-word phrases matched as substrings.
+# Tuned for an offensive-security / red-team profile.
 CV_SKILLS = [
-    "python", "javascript", "react", "java", "php", "sql", "bash",
-    "llm", "prompt engineering", "tensorflow", "agentic", "spark", "kafka",
-    "redshift", "etl", "docker", "kubernetes", "aws", "mcp", "rag",
-    "postgresql", "cassandra", "databricks", "retool", "system design",
-    "nlp", "opencv", "data engineering", "machine learning", "pipeline",
-    "microservices", "distributed", "streaming", "api",
+    # offensive security core
+    "penetration testing", "red team", "offensive security", "vulnerability", "exploit",
+    "active directory", "entra id", "azure ad", "privilege escalation", "lateral movement",
+    "adversary emulation", "purple team", "bug bounty", "reverse engineering", "web application security",
+    "whitebox", "white-box", "source code review", "ctf", "cve",
+    # cloud / identity
+    "azure", "aws", "rbac", "managed identities", "service principals", "adcs", "kubernetes",
+    "cloud security", "iam", "devsecops",
+    # tooling / tradecraft
+    "mythic", "sliver", "cobalt strike", "c2", "evilginx", "bloodhound", "azurehound",
+    "certipy", "impacket", "burp suite", "nmap", "wireshark", "metasploit", "chisel",
+    "proxychains", "neo4j", "exegol", "sast", "dast", "siem", "sigma", "suricata", "snort",
+    # programming / infra
+    "python", "bash", "c++", "c#", ".net", "java", "javascript", "powershell",
+    "docker", "terraform", "ansible", "github actions", "react", "next.js", "node.js", "flask",
 ]
 
 # Number of matched skills that counts as a "full" overlap score.
@@ -94,9 +105,17 @@ def score_job(title: str, description: str, posted_at: Optional[str] = None,
 
     rec = _recency(posted_at, now)
     total = 0.55 * skills_score + 0.30 * role_score + 0.15 * rec
+
+    # PFE / end-of-studies internships are the primary target: give a real match
+    # a boost so they sort to the top, ahead of otherwise-similar junior roles.
+    intern = is_internship(title, description)
+    if intern and role_score > 0:
+        total += 0.12
     total = round(max(0.0, min(1.0, total)), 3)
 
     reasons: List[str] = []
+    if intern:
+        reasons.append("Internship / PFE role")
     if matched:
         top = ", ".join(matched[:6])
         reasons.append(f"Matches your skills: {top}")

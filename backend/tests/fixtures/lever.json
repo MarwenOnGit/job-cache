@@ -1,10 +1,14 @@
 [
   {
     "id": "abc-1",
-    "text": "Data Engineer",
-    "categories": { "location": "London, UK", "team": "Data", "commitment": "Full-time" },
+    "text": "Penetration Tester",
+    "categories": {
+      "location": "London, UK",
+      "team": "Security",
+      "commitment": "Full-time"
+    },
     "hostedUrl": "https://jobs.lever.co/acme/abc-1",
-    "descriptionPlain": "Build ETL pipelines with Kafka and Spark on AWS. We are unable to sponsor visas.",
+    "descriptionPlain": "Lead penetration tests and red team engagements against web and Active Directory. We are unable to sponsor visas.",
     "createdAt": 1756000000000
   }
 ]

@@ -11,12 +11,13 @@ class TestDefaults(unittest.TestCase):
         # An empty preference is the broadest search: every location + every family.
         self.assertEqual(prefs_mod.target_locations(prefs_mod.DEFAULTS), set(TARGET_CITIES))
         self.assertEqual(prefs_mod.target_role_families(prefs_mod.DEFAULTS),
-                         {"ai_agentic", "ai_ml", "data_eng", "swe"})
+                         {"offensive_security", "appsec", "blue_team", "cloud_grc",
+                          "security_other", "ai_ml", "swe"})
 
     def test_specific_selection(self):
-        prefs = {"locations": ["paris", "remote-eu"], "role_families": ["swe"]}
+        prefs = {"locations": ["paris", "remote-eu"], "role_families": ["offensive_security"]}
         self.assertEqual(prefs_mod.target_locations(prefs), {"paris", "remote-eu"})
-        self.assertEqual(prefs_mod.target_role_families(prefs), {"swe"})
+        self.assertEqual(prefs_mod.target_role_families(prefs), {"offensive_security"})
 
 
 class TestNormalize(unittest.TestCase):
