@@ -17,11 +17,12 @@ fi
 PORT="${PORT:-8000}"
 URL="http://localhost:${PORT}"
 
-# 2. First-run harvest so the dashboard isn't empty.
-if [ ! -f data/jobs.db ]; then
-  echo "First run — harvesting jobs (this hits free public job boards)…"
-  python backend/harvester.py || echo "Harvest had issues; you can retry from the UI."
-fi
+# 2. Fresh live search on every launch (in the background, so the dashboard opens
+#    right away with the jobs you already have; refresh the page when it finishes).
+mkdir -p data
+echo "Searching job boards with your profile's search terms (log: data/harvest.log)…"
+( cd backend && python harvester.py > ../data/harvest.log 2>&1 \
+    || echo "Harvest had issues; retry from the UI." >> ../data/harvest.log ) &
 
 # 3. Open the browser shortly after the server starts.
 ( sleep 1.5
