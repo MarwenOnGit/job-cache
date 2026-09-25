@@ -127,7 +127,9 @@ It starts as *"still learning"* and sharpens the more you use it.
 
 **The repo is the app; your data is yours and stays local.** Your CV (`cv/cv.md`), your
 `preferences.md`, everything under `applications/`, the `queue/`, the SQLite DB, and the learned
-model are all **gitignored** — they never get committed. The repo ships example templates
+model are all **gitignored** — they never get committed. The dashboard listens on loopback only
+(`127.0.0.1` / `::1`), so other machines on your network can't reach it, and its API refuses
+requests from other websites. The repo ships example templates
 (`cv/cv.example.md`, `preferences.example.md`) so a fresh clone knows the format.
 
 To move machines, back up, or share: **Settings → Export everything** writes one JSON file with

@@ -1,10 +1,13 @@
 """Minimal HTTP JSON helper built on the stdlib (no third-party deps)."""
 from __future__ import annotations
 
+import ipaddress
 import json
+import socket
 import urllib.error
 import urllib.request
 from typing import Any, Optional, Tuple
+from urllib.parse import urlparse
 
 _UA = "job-cache/1.0 (+https://github.com/samiimasmoudii)"
 
@@ -51,3 +54,51 @@ def resolve_redirect(url: str, timeout: int = 8) -> Optional[Tuple[int, Optional
         return e.code, e.headers.get("Location")
     except (urllib.error.URLError, TimeoutError, OSError):
         return None
+
+
+# --- fetching untrusted URLs (the Apply-workspace proxy) ---------------------
+# Job postings come from open aggregators, so their apply links are untrusted.
+# Before fetching one on the user's behalf, make sure it (and every redirect hop)
+# points at the public internet, not at this machine, the LAN, or a cloud
+# metadata endpoint.
+
+def _is_public_ip(value: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(value.split("%", 1)[0])  # drop an IPv6 zone id
+    except ValueError:
+        return False
+    if ip.version == 6 and ip.ipv4_mapped:
+        ip = ip.ipv4_mapped
+    return ip.is_global and not ip.is_multicast
+
+
+def is_public_url(url: str) -> bool:
+    """True only for an http(s) URL whose host resolves exclusively to public IPs."""
+    try:
+        parsed = urlparse(url)
+        host, port = parsed.hostname, parsed.port
+    except ValueError:
+        return False
+    if parsed.scheme not in ("http", "https") or not host:
+        return False
+    try:
+        infos = socket.getaddrinfo(host, port or (443 if parsed.scheme == "https" else 80),
+                                   proto=socket.IPPROTO_TCP)
+    except (socket.gaierror, UnicodeError, OSError):
+        return False
+    return bool(infos) and all(_is_public_ip(info[4][0]) for info in infos)
+
+
+class _PublicOnlyRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not is_public_url(newurl):
+            raise urllib.error.URLError("redirect to a non-public address")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def open_public(req: urllib.request.Request, timeout: int = 12):
+    """urlopen() that refuses non-public destinations, including via redirects.
+    Raises urllib.error.URLError when the URL or a redirect hop isn't public."""
+    if not is_public_url(req.full_url):
+        raise urllib.error.URLError("not a public address")
+    return urllib.request.build_opener(_PublicOnlyRedirect).open(req, timeout=timeout)

@@ -1,6 +1,7 @@
 """FastAPI app: REST API + serves the static dashboard. Run: uvicorn app:app"""
 from __future__ import annotations
 
+import html
 import json
 import os
 import re
@@ -35,6 +36,40 @@ VALID_STATUSES = {
 }
 
 app = FastAPI(title="job cache")
+
+# The only hostnames this local app answers to. Anything else in the Host header
+# means a DNS-rebinding attempt (evil.example resolving to 127.0.0.1) or a request
+# from another machine, and must not reach the API.
+_LOCAL_HOSTNAMES = {"localhost", "127.0.0.1", "::1"}
+
+
+def _hostname(netloc: str) -> Optional[str]:
+    try:
+        return urlparse("//" + netloc).hostname
+    except ValueError:
+        return None
+
+
+@app.middleware("http")
+async def _local_only(request, call_next):
+    """Block requests that don't come from this dashboard itself.
+
+    - Host must be a loopback name (stops DNS rebinding).
+    - /api/* must be same-origin: a page on another site (or the sandboxed
+      Apply-workspace frame, whose origin is "null") can otherwise fire POSTs at
+      localhost, or embed GETs like /api/proxy, without the user knowing.
+    """
+    host = request.headers.get("host", "")
+    if _hostname(host) not in _LOCAL_HOSTNAMES:
+        return PlainTextResponse("Forbidden: unknown host", status_code=403)
+    if request.url.path.startswith("/api/"):
+        origin = request.headers.get("origin")
+        if origin is not None and urlparse(origin).netloc != host:
+            return PlainTextResponse("Forbidden: cross-origin request", status_code=403)
+        site = request.headers.get("sec-fetch-site")
+        if site is not None and site not in ("same-origin", "none"):
+            return PlainTextResponse("Forbidden: cross-site request", status_code=403)
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -726,13 +761,16 @@ def proxy(url: str):
         return JSONResponse(
             {"ok": False, "status": None, "reason": "This site's application form doesn't survive embedding"},
             status_code=502)
+    if not http_util.is_public_url(url):
+        # never fetch loopback / LAN / link-local (cloud metadata) addresses
+        raise HTTPException(400, "url must point at a public address")
     req = urllib.request.Request(url, headers={
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
                       "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml",
     })
     try:
-        with urllib.request.urlopen(req, timeout=12) as r:
+        with http_util.open_public(req, timeout=12) as r:
             ctype = r.headers.get("Content-Type", "text/html")
             raw = r.read()
     except urllib.error.HTTPError as e:
@@ -747,7 +785,7 @@ def proxy(url: str):
     except Exception:  # noqa
         text = raw.decode("latin-1", errors="replace")
     # inject <base> so relative assets/links resolve against the origin
-    base_tag = f'<base href="{url}">'
+    base_tag = f'<base href="{html.escape(url, quote=True)}">'
     lower = text.lower()
     if "<head" in lower:
         idx = lower.index("<head")
@@ -767,16 +805,16 @@ def _inlined_index() -> str:
     Inlining means there's exactly one request — if the page loads at all, the whole
     app loads. Source files stay separate on disk for maintainability.
     """
-    html = queue_io._read(os.path.join(FRONTEND_DIR, "index.html"))
+    page = queue_io._read(os.path.join(FRONTEND_DIR, "index.html"))
     css = queue_io._read(os.path.join(FRONTEND_DIR, "styles.css"))
     js = queue_io._read(os.path.join(FRONTEND_DIR, "app.js"))
     import re as _re
     # function replacements so backslashes in CSS/JS are NOT treated as regex group refs
     # match only our own stylesheet link (by href), not the Google Fonts <link
     # rel="stylesheet"> in <head> — inlining that one would drop the font import.
-    html = _re.sub(r'<link rel="stylesheet" href="/styles\.css[^"]*"\s*/?>', lambda _m: f"<style>{css}</style>", html, count=1)
-    html = _re.sub(r'<script src="/app\.js[^"]*"></script>', lambda _m: f"<script>{js}</script>", html, count=1)
-    return html
+    page = _re.sub(r'<link rel="stylesheet" href="/styles\.css[^"]*"\s*/?>', lambda _m: f"<style>{css}</style>", page, count=1)
+    page = _re.sub(r'<script src="/app\.js[^"]*"></script>', lambda _m: f"<script>{js}</script>", page, count=1)
+    return page
 
 
 # --- static frontend (mounted last so /api/* wins) --------------------------

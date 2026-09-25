@@ -1515,7 +1515,10 @@ async function loadWsStage(id, url) {
   }
   const html = await res.text();
   if (wsOpenForId !== id) return;
-  stage.innerHTML = `<iframe class="ws-frame" id="wsFrame" sandbox="allow-forms allow-scripts allow-same-origin allow-popups"></iframe>`;
+  // No allow-same-origin here: a srcdoc frame inherits OUR origin, so with it the
+  // third-party page's scripts could call /api/export and read the user's CV.
+  // Without it the frame gets an opaque origin, and the backend rejects its requests.
+  stage.innerHTML = `<iframe class="ws-frame" id="wsFrame" sandbox="allow-forms allow-scripts allow-popups"></iframe>`;
   $("#wsFrame").srcdoc = html;
 }
 function teardownWorkspace() {
