@@ -12,7 +12,7 @@ import yaml
 from adapters import AGGREGATORS, fetch_company
 from flagger import classify_sponsorship
 from models import Job
-from normalize import classify_city, classify_role_family
+from normalize import classify_city, classify_role_family, is_non_technical
 from ranker import score_job
 from seniority import classify_seniority, extract_required_years
 import db
@@ -53,8 +53,14 @@ def keep(job: Job, prefs: Optional[dict] = None) -> bool:
     search preferences. `prefs=None` means the broadest search (keep every
     supported location and role family)."""
     prefs = prefs if prefs is not None else prefs_mod.DEFAULTS
-    if not (job.city in prefs_mod.target_locations(prefs)
-            and job.role_family in prefs_mod.target_role_families(prefs)):
+    if job.city not in prefs_mod.target_locations(prefs):
+        return False
+    # Relevance is judged on the TITLE. A description that merely mentions security
+    # (a backend role at a DevSecOps vendor, a sales role selling a security product)
+    # is not a security job.
+    if classify_role_family(job.title, "") not in prefs_mod.target_role_families(prefs):
+        return False
+    if is_non_technical(job.title):
         return False
     return fits_level(job)
 

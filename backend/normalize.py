@@ -259,6 +259,24 @@ def classify_role_family(title: str, description: str = "") -> Optional[str]:
     return None
 
 
+# Non-technical roles at security companies ("Cybersecurity Account Executive") that a
+# security keyword in the title would otherwise let through.
+NON_TECHNICAL_TITLES = [
+    "account executive", "account manager", "sales", "business development", "bdr", "sdr",
+    "marketing", "recruiter", "recruiting", "talent", "customer success", "partner manager",
+    "channel manager", "alliances", "designer", "legal", "counsel", "finance", "accountant",
+    "office manager", "executive assistant", "people partner", "hr ",
+    "copywriter", "content writer", "product marketing", "solutions consultant", "presales",
+    "pre-sales", "sales engineer", "commercial", "chargé d'affaires",
+    "ingénieur commercial", "technico-commercial",
+]
+
+
+def is_non_technical(title: str) -> bool:
+    t = f" {(title or '').lower()} "
+    return any(k in t for k in NON_TECHNICAL_TITLES)
+
+
 def title_matches_family(title: str) -> bool:
     """True if the *title alone* (strong signal) matches a target family."""
     return classify_role_family(title, "") is not None

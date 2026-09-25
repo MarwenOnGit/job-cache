@@ -16,7 +16,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
 # Bump to force one more automatic wipe on every machine at next launch.
-RESET_VERSION = "1"
+RESET_VERSION = "2"
 MARKER = os.path.join(DATA, f".reset-{RESET_VERSION}")
 
 TARGETS = ["jobs.db", "jobs.db-wal", "jobs.db-shm", "model.json",
