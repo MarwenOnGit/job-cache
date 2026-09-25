@@ -149,3 +149,82 @@ class TestServeBindsLoopbackOnly(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class _EchoHost(__import__("http.server").server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        body = (self.headers.get("Host") or "").encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *a):
+        pass
+
+
+class TestPinnedConnections(unittest.TestCase):
+    """Validation and connection must use the SAME DNS answer (no rebinding gap)."""
+
+    def setUp(self):
+        import http.server
+        import threading
+        self.srv = http.server.HTTPServer(("127.0.0.1", 0), _EchoHost)
+        self.port = self.srv.server_address[1]
+        threading.Thread(target=self.srv.serve_forever, daemon=True).start()
+        # a direct connection (no proxy from the environment) so pinning applies
+        self.no_proxy = patch("urllib.request.getproxies", return_value={})
+        self.no_proxy.start()
+
+    def tearDown(self):
+        self.no_proxy.stop()
+        self.srv.shutdown()
+        self.srv.server_close()
+
+    def test_dns_rebinding_between_check_and_connect_is_refused(self):
+        answers = iter([_fake_resolve("93.184.216.34")(), _fake_resolve("127.0.0.1")()])
+        with patch("socket.getaddrinfo", lambda *a, **k: next(answers)), \
+                patch("socket.create_connection") as connect:
+            with self.assertRaises(urllib.error.URLError):
+                http_util.open_public(urllib.request.Request(f"http://rebind.test:{self.port}/"))
+        connect.assert_not_called()   # never even opened a socket to 127.0.0.1
+
+    def test_connects_to_the_checked_ip_and_keeps_the_real_host_header(self):
+        # treat loopback as "public" just for this test so we can observe the request
+        real_getaddrinfo = socket.getaddrinfo
+        lookups = []
+
+        def resolve(host, *a, **k):
+            lookups.append(host)
+            return real_getaddrinfo("127.0.0.1", *a, **k) if host == "pinned.test" else real_getaddrinfo(host, *a, **k)
+
+        with patch("socket.getaddrinfo", resolve), patch.object(http_util, "_is_public_ip", return_value=True):
+            with http_util.open_public(urllib.request.Request(f"http://pinned.test:{self.port}/x")) as r:
+                self.assertEqual(r.read().decode(), f"pinned.test:{self.port}")
+        # resolved once for the check, once for the pinned connect, and the
+        # connect itself went to the literal IP (no third, unchecked lookup)
+        self.assertEqual(lookups.count("pinned.test"), 2)
+
+    def test_pinned_connect_refuses_private_answer(self):
+        with patch("socket.getaddrinfo", _fake_resolve("10.1.2.3")):
+            with self.assertRaises(OSError):
+                http_util._create_public_connection(("internal.test", 80))
+
+    def test_proxied_requests_use_the_stock_connection(self):
+        direct = urllib.request.Request("http://example.com/")
+        self.assertFalse(http_util._proxied(direct))
+        via_proxy = urllib.request.Request("http://example.com/")
+        via_proxy.set_proxy("proxy.corp:3128", "http")
+        self.assertTrue(http_util._proxied(via_proxy))
+        tunnel = urllib.request.Request("https://example.com/")
+        tunnel.set_proxy("proxy.corp:3128", "https")
+        self.assertTrue(http_util._proxied(tunnel))
+
+
+class TestResolveRedirectGuard(unittest.TestCase):
+    def test_non_public_host_is_not_probed(self):
+        with patch("socket.getaddrinfo", _fake_resolve("192.168.0.10")), \
+                patch("urllib.request.OpenerDirector.open") as m:
+            self.assertIsNone(http_util.resolve_redirect("https://www.arbeitnow.com/jobs/x/apply"))
+        m.assert_not_called()

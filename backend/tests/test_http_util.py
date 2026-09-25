@@ -18,6 +18,13 @@ class _FakeResp:
 
 
 class TestResolveRedirect(unittest.TestCase):
+    # These cover how responses are interpreted, with the network mocked out;
+    # the public-address guard in front of it has its own tests (test_security).
+    def setUp(self):
+        guard = patch.object(http_util, "is_public_url", return_value=True)
+        guard.start()
+        self.addCleanup(guard.stop)
+
     def test_redirect_returns_status_and_location(self):
         opener = MagicMock()
         opener.open.side_effect = urllib.error.HTTPError(

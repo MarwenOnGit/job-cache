@@ -531,7 +531,13 @@ async function loadJobsAll(forceToast) {
   jobsAll = data.jobs;
   jobsPrefs = prefs && prefs.preferences;
   // a harvest/refresh may have added jobs that match the active search
-  try { await syncJobsMatch(true); } catch (e) { jobsMatch = { key: "[]", ids: null, seq: jobsMatch.seq + 1 }; }
+  try { await syncJobsMatch(true); } catch (e) {
+    // Never fall back to "no filter" while search terms are active: keep the
+    // last result for them (or show none), say so, and retry on the next change.
+    const active = !!(jobsView.q.trim() || jobsView.kw.length);
+    jobsMatch = { key: "", ids: active ? (jobsMatch.ids || new Set()) : null, seq: jobsMatch.seq + 1 };
+    if (active) toast("Search couldn't refresh; showing the last results", "err");
+  }
   jobsView.visibleCount = JOBS_FIRST_PAGE;
   // Arriving here from Overview or the command palette with a specific job in
   // mind (selectedId already set) opens straight to it, expanded and in view.
